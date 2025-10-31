@@ -5,7 +5,7 @@ const auth = (req, res, next) => {
     // Middleware authentication logic here
     const token = req.cookies.token;
     try {
-        var decoded = jwt.verify(token, Config.privateKey, { algorithms: ['RS256'] });
+        var decoded = jwt.verify(token, Config.privateKey);
         // add decoded.userId to be used later
         req.userId = decoded.userId;
     } catch(err) {

@@ -4,19 +4,24 @@ import Config from './config.js';
 const setup = () => {
   // Any setup code can go here
   User.findOne({admin: true})
-  .then(user => console.log('User already exists, no setup needed'))
-  .catch(err => {
-    console.error('Error during setup:', err);
-    // If no user exists, create a default admin user
-    const adminUser = new User({
+  .then(user => {
+    if (user) {
+      console.log('Admin user already exists');
+    } else {
+      // If no admin user exists, create one
+      const adminUser = new User({
         token: Config.adminToken,
         provisioned: true,
         admin: true
       });
-    adminUser.save()
-    .then(() => console.log('Admin user created successfully'))
-    .catch(saveErr => console.error('Error creating admin user:', saveErr))
-    });
+      adminUser.save()
+      .then((res) => console.log('Admin user created successfully', res))
+      .catch(saveErr => console.error('Error creating admin user:', saveErr))
+    }
+  })
+  .catch(err => {
+    console.error('Error during setup:', err);
+});
 }
 
 export default setup;

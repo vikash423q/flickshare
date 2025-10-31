@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
 import Config from './config.js';
 import setup from './setup.js';
@@ -10,7 +11,10 @@ import { authenticate, info } from './api/user.js';
 import { auth } from './middleware/auth.js';
 
 const app = express();
+app.use(express.json());
+app.use(cookieParser());
 
+// Connect to MongoDB
 const connectDB = async () => {
   try {
     await mongoose.connect(`mongodb://${Config.MONGODB_USERNAME}:${Config.MONGODB_PASSWORD}@${Config.MONGODB_HOST}`);
@@ -19,7 +23,6 @@ const connectDB = async () => {
     console.error('❌ MongoDB connection error:', err);
   }
 }
-
 await connectDB();
 
 // Healthcheck endpoint

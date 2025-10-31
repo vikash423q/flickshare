@@ -10,10 +10,10 @@ const userSchema = new Schema({
     auto: true,
   },
   token: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     index: true,
     required: true,
-    auto: true,
+    minLength: 8,
   },
   provisioned: {
     type: Boolean,
