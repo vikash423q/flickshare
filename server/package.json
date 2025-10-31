@@ -1,9 +1,12 @@
 {
   "name": "flickshare-server",
   "version": "1.0.0",
-  "type": "module", 
+  "type": "module",
   "main": "server.js",
   "dependencies": {
-    "express": "^5.1.0"
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.19.2"
   }
 }
