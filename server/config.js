@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 class Config {
-    static PORT = 8081;
+    static PORT = process.env.PORT || 8081;
     static MONGODB_HOST = process.env.MONGODB_HOST;
     static MONGODB_USERNAME = process.env.MONGODB_USERNAME;
     static MONGODB_PASSWORD = process.env.MONGODB_PASSWORD;
