@@ -15,7 +15,7 @@ const setup = () => {
         admin: true
       });
       adminUser.save()
-      .then((res) => console.log('Admin user created successfully', res))
+      .then(() => console.log('Admin user created successfully'))
       .catch(saveErr => console.error('Error creating admin user:', saveErr))
     }
   })

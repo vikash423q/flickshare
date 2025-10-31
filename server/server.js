@@ -17,7 +17,9 @@ app.use(cookieParser());
 // Connect to MongoDB
 const connectDB = async () => {
   try {
-    await mongoose.connect(`mongodb://${Config.MONGODB_USERNAME}:${Config.MONGODB_PASSWORD}@${Config.MONGODB_HOST}`);
+    await mongoose.connect(`mongodb://${Config.MONGODB_USERNAME}:${Config.MONGODB_PASSWORD}@${Config.MONGODB_HOST}`, {
+      dbName: Config.DB_NAME
+    });
     console.log('✅ MongoDB connected');
   } catch (err) {
     console.error('❌ MongoDB connection error:', err);
