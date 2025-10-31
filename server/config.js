@@ -3,7 +3,7 @@ dotenv.config();
 
 class Config {
     static PORT = 8081;
-    static MONGODB_HOST = process.env.MONGODB_URL;
+    static MONGODB_HOST = process.env.MONGODB_HOST;
     static MONGODB_USERNAME = process.env.MONGODB_USERNAME;
     static MONGODB_PASSWORD = process.env.MONGODB_PASSWORD;
     static privateKey = process.env.PRIVATE_KEY;
