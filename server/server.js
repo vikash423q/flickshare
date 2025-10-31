@@ -10,5 +10,5 @@ app.get('/healthcheck', (req, res) => {
 
 // Start the server
 app.listen(Config.PORT, () => {
-  console.log(`Example app listening on port ${Config.PORT}`)
+  console.log(`Listening on port ${Config.PORT}`)
 })
