@@ -7,6 +7,8 @@ class Config {
     static MONGODB_USERNAME = process.env.MONGODB_USERNAME;
     static MONGODB_PASSWORD = process.env.MONGODB_PASSWORD;
     static DB_NAME = process.env.DB_NAME;
+    static REDIS_URL = process.env.REDIS_URL;
+    static REDIS_PASSWORD = process.env.REDIS_PASSWORD;
     static privateKey = process.env.PRIVATE_KEY;
     static adminToken = process.env.ADMIN_TOKEN;
     static userTokenLength = parseInt(process.env.USER_TOKEN_LENGTH) || 24;

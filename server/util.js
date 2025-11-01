@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 const adjectives = [
   "Sunny", "Misty", "Lucky", "Clever", "Brave", "Happy", "Gentle", "Sparkly",
   "Witty", "Charming", "Sleepy", "Tiny", "Curious", "Jolly", "Zippy", "Peppy",
@@ -16,4 +18,10 @@ const generateCuteName = () => {
   return `${adj} ${name}`; // e.g. "SunnyMuffin"
 }
 
-export { generateCuteName };
+const generateHexToken = (length = 10) => {
+  return crypto.randomBytes(Math.ceil(length / 2))
+               .toString('hex')
+               .slice(0, length);
+}
+
+export { generateCuteName, generateHexToken };

@@ -12,6 +12,7 @@ const auth = (req, res, next) => {
         var decoded = jwt.verify(token, Config.privateKey);
         // add decoded.userId to be used later
         req.userId = decoded.userId;
+        req.userName = decoded.userName;
     } catch(err) {
         // err
         return res.status(401).send({ message: 'Unauthorized' });
