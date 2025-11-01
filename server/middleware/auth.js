@@ -3,7 +3,11 @@ import Config from '../config.js';
 
 const auth = (req, res, next) => {
     // Middleware authentication logic here
-    const token = req.cookies.token;
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'Unauthorized' });
+    }
+    const token = authHeader.split(' ')[1];
     try {
         var decoded = jwt.verify(token, Config.privateKey);
         // add decoded.userId to be used later

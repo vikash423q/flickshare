@@ -8,8 +8,8 @@ const authenticate = (req, res) => {
     .then(user => {
         const oneYearMs = 365 * 24 * 60 * 60 * 1000; // 365 days in milliseconds
         var token = jwt.sign({ userId: user.userId }, Config.privateKey);
-        res.cookie('token', token, {expires: new Date(Date.now() + oneYearMs), secure: true, httpOnly: true});
-        return res.status(200).send({ message: 'Authenticated', userId: user.userId });
+        res.cookie('token', token, {expires: new Date(Date.now() + oneYearMs), secure: false, httpOnly: false});
+        return res.status(200).send({ message: 'Authenticated', userId: user.userId , token: token});
         })
     .catch(err => {
         console.error('Authentication error:', err);
