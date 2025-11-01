@@ -4,7 +4,12 @@ import Config from './config.js';
 
 // Redis clients - need separate clients for pub and sub
 const publisher = createClient({ url: Config.REDIS_URL });
-const subscriber = createClient({ url: Config.REDIS_URL});
+const subscriber = createClient({ url: Config.REDIS_URL });
+const redisClient = createClient({ url: Config.REDIS_URL });
+
+publisher.on('error', (err) => console.error('Redis Publisher Error', err));
+subscriber.on('error', (err) => console.error('Redis Subscriber Error', err));
+redisClient.on('error', (err) => console.error('Redis Client Error', err));
 
 // Store active connections per room
 // Map<roomId, Set<WebSocket>>
@@ -14,11 +19,12 @@ const roomConnections = new Map();
 async function initRedis() {
   await publisher.connect();
   await subscriber.connect();
+  await redisClient.connect();
   console.log('✅ Connected to Redis');
 }
 
 // Handle incoming messages from Redis and broadcast to room members
-async function handleRedisMessage(channel, message) {
+async function handleRedisMessage(message, channel) {
   console.log(`📨 Received from Redis channel ${channel}:`, message);
   
   const roomId = channel.replace('room:', '');
@@ -37,17 +43,24 @@ async function handleRedisMessage(channel, message) {
   }
 }
 
+const getRoomActiveConnections = async (roomId) => {
+  const value = await redisClient.get(roomId);
+  if (value === null) {
+    return 0;
+  }
+  return value;
+}
+
 // Subscribe to a room
 async function subscribeToRoom(roomId) {
   const channel = `room:${roomId}`;
   
   // Check if already subscribed
-  const existingChannels = await subscriber.sendCommand(['PUBSUB', 'CHANNELS', channel]);
+  const activeConnections = await getRoomActiveConnections(channel);
   
-  if (!existingChannels.includes(channel)) {
-    await subscriber.subscribe(channel, handleRedisMessage);
-    console.log(`🔔 Subscribed to ${channel}`);
-  }
+  await subscriber.subscribe(channel, handleRedisMessage);
+  console.log(`🔔 Subscribed to ${channel}`);
+  await redisClient.set(channel, activeConnections + 1);
 }
 
 // Publish message to room
@@ -133,6 +146,8 @@ const handleWebSocketConnection = (ws) => {
               roomId: currentRoom,
               timestamp: Date.now()
             });
+            const channel = `room:${currentRoom}`;
+            await redisClient.set(channel, Math.max(0, await getRoomActiveConnections(channel) - 1));
             
             console.log(`👋 User ${userId} left room ${currentRoom}`);
             currentRoom = null;
