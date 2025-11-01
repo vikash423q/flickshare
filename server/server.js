@@ -3,6 +3,7 @@ dotenv.config();
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import mongoose from 'mongoose';
 import Config from './config.js';
 import setup from './setup.js';
@@ -13,6 +14,7 @@ import { auth } from './middleware/auth.js';
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors());
 
 // Connect to MongoDB
 const connectDB = async () => {
