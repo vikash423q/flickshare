@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // Individual Chat Window Component
-const ChatWindow = ({ userId, roomId, position, onDrag}) => {
+const ChatWindow = ({ userId, roomId, position, onDrag, serverUrl}) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -9,11 +9,7 @@ const ChatWindow = ({ userId, roomId, position, onDrag}) => {
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    // Connect to WebSocket
-    wsRef.current = new WebSocket('ws://localhost:8081');
-
-    wsRef.current.onopen = () => {
+  const onOpen = () => {
       setIsConnected(true);
       // Join room
       wsRef.current.send(JSON.stringify({
@@ -24,35 +20,47 @@ const ChatWindow = ({ userId, roomId, position, onDrag}) => {
       }));
     };
 
-    wsRef.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      switch (data.type) {
-        case 'joined':
-          addMessage('system', `Connected to ${roomId}`);
-          break;
-        case 'message':
-          addMessage(data.userId, data.content, data.timestamp);
-          break;
-        case 'user_joined':
-          if (data.userId !== userId) {
-            addMessage('system', `${data.userId} joined`);
-          }
-          break;
-        case 'user_left':
-          addMessage('system', `${data.userId} left`);
-          break;
-      }
-    };
+  const onMessage = (event) => {
+    const data = JSON.parse(event.data);
+    
+    switch (data.type) {
+      case 'joined':
+        addMessage('system', `Connected to ${roomId}`);
+        break;
+      case 'message':
+        addMessage(data.userId, data.content, data.timestamp);
+        break;
+      case 'user_joined':
+        if (data.userId !== userId) {
+          addMessage('system', `${data.userId} joined`);
+        }
+        break;
+      case 'user_left':
+        addMessage('system', `${data.userId} left`);
+        break;
+    }
+  };
 
-    wsRef.current.onclose = () => {
-      setIsConnected(false);
-      addMessage('system', 'Disconnected');
-    };
+  const onClose = () => {
+    setIsConnected(false);
+    addMessage('system', 'Disconnected');
+  };
 
-    wsRef.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+  const onError = (error) => {
+    console.error('WebSocket error:', error);
+  };
+
+  const establishConnection = () => {
+    wsRef.current = new WebSocket(serverUrl);
+    wsRef.current.onopen = onOpen;
+    wsRef.current.onmessage = onMessage;
+    wsRef.current.onclose = onClose;
+    wsRef.current.onerror = onError;
+  }
+
+  useEffect(() => {
+    // Connect to WebSocket
+    establishConnection();
 
     return () => {
       if (wsRef.current) {
@@ -73,6 +81,11 @@ const ChatWindow = ({ userId, roomId, position, onDrag}) => {
       timestamp: timestamp || Date.now()
     }]);
   };
+
+  const restablishConnection = () => {
+    if (isConnected) return;
+    establishConnection();
+  }
 
   const sendMessage = () => {
     if (!input.trim() || !isConnected) return;
@@ -162,11 +175,11 @@ const ChatWindow = ({ userId, roomId, position, onDrag}) => {
           <div
             style={{
               flex: 1,
-              overflowY: 'auto',
+              overflowY: 'scroll',
               padding: '12px',
               background: '#f9fafb',
               minHeight: '300px',
-              maxHeight: '400px'
+              maxHeight: '300px'
             }}
           >
             {messages.length === 0 ? (
@@ -245,14 +258,15 @@ const ChatWindow = ({ userId, roomId, position, onDrag}) => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
+                onFocus={restablishConnection}
                 placeholder="Type a message..."
-                disabled={!isConnected}
                 style={{
                   flex: 1,
                   padding: '8px 12px',
                   border: '1px solid #d1d5db',
                   borderRadius: '6px',
                   fontSize: '13px',
+                  color: isConnected ? '#111827' : '#9ca3af',
                   outline: 'none',
                   background: isConnected ? 'white' : '#f3f4f6'
                 }}
@@ -294,7 +308,7 @@ const App = () => {
 
   const [newUserId, setNewUserId] = useState('');
   const [newRoomId, setNewRoomId] = useState('room-1');
-  const [serverUrl, setServerUrl] = useState('ws://localhost:8081');
+  const [serverUrl, setServerUrl] = useState('wss://flickshare.vikashgaurav.com');
 
   const changePosition = (id, newPos) => {
     setWindows(windows.map(w => 
