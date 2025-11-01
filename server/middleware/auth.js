@@ -17,6 +17,6 @@ const auth = (req, res, next) => {
         return res.status(401).send({ message: 'Unauthorized' });
     }
     return next();
-}; 
+};
 
 export { auth };

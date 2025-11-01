@@ -1,5 +1,6 @@
 import User from './model/user.js';
 import Config from './config.js';
+import { generateCuteName } from './util.js';
 
 const setup = () => {
   // Any setup code can go here
@@ -9,10 +10,12 @@ const setup = () => {
       console.log('Admin user already exists');
     } else {
       // If no admin user exists, create one
+      const name = generateCuteName();
       const adminUser = new User({
         token: Config.adminToken,
         provisioned: true,
-        admin: true
+        admin: true,
+        name: name
       });
       adminUser.save()
       .then(() => console.log('Admin user created successfully'))

@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 import Config from './config.js';
 import setup from './setup.js';
 
-import { authenticate, info } from './api/user.js';
+import { authenticate, info, updateUserInfo, generateUserToken } from './api/user.js';
 import { auth } from './middleware/auth.js';
 
 const app = express();
@@ -37,6 +37,8 @@ app.get('/healthcheck', (req, res) => {
 // User endpoints
 app.post('/api/user/authenticate', authenticate);
 app.get('/api/user/info', auth, info);
+app.put('/api/user/info', auth, updateUserInfo);
+app.get('/api/user/generate-token', auth, generateUserToken);
 
 
 // Initial setup

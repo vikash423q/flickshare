@@ -1,6 +1,9 @@
 import User from '../model/user.js';
 import jwt from 'jsonwebtoken';
 import Config from '../config.js';
+import crypto from 'crypto';
+import { generateCuteName } from '../util.js';
+
 
 const authenticate = (req, res) => {
     // Authentication logic here
@@ -28,7 +31,9 @@ const info = (req, res) => {
             userId: user.userId,
             provisioned: user.provisioned,
             admin: user.admin,
-            createdAt: user.createdAt
+            createdAt: user.createdAt,
+            name: user.name,
+            gender: user.gender
         });
     })
     .catch(err => {
@@ -36,4 +41,59 @@ const info = (req, res) => {
     })
 }
 
-export { authenticate, info };
+const updateUserInfo = (req, res) => {
+    User.findOne({ userId: req.userId })
+    .then(user => {
+        if (req.body.name !== undefined) {
+            user.name = req.body.name;
+        }
+        if (req.body.gender !== undefined) {
+            user.gender = req.body.gender;
+        }
+        user.save()
+        .then(() => {
+            return res.status(200).send({ message: 'User info updated successfully' });
+        })
+        .catch(saveErr => {
+            return res.status(500).send({ message: 'Error updating user info', error: saveErr.message });
+        });
+    })
+    .catch(err => {
+        return res.status(404).send({ message: 'User not found' });
+    })
+}
+
+
+function generateHexToken(length = 10) {
+  return crypto.randomBytes(Math.ceil(length / 2))
+               .toString('hex')
+               .slice(0, length);
+}
+
+const generateUserToken = (req, res) => {
+    User.findOne({ userId: req.userId })
+    .then(async user => {
+        if (!user.admin) {
+            return res.status(403).send({ message: 'Forbidden', error: 'Admin privileges required' });
+        }
+        let newToken = generateHexToken(Config.userTokenLength);
+        let existingUser = await User.findOne({ token: newToken });
+        while (existingUser) {
+            newToken = generateHexToken(Config.userTokenLength);
+            existingUser = await User.findOne({ token: newToken });
+        }
+        const name = generateCuteName();
+        const newUser = new User({token: newToken, name: name, provisioned: false, admin: false});
+        newUser.save()
+        .then(() => {
+            console.log('New user created successfully');
+            return res.status(200).send({ message: 'New user created', token: newToken });
+        })
+        .catch(saveErr => console.error('Error creating new user:', saveErr))
+    })
+    .catch(err => {
+        return res.status(404).send({ message: 'User not found', error: err.message });
+    });
+};
+
+export { authenticate, info, updateUserInfo, generateUserToken };

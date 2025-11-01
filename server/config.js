@@ -9,6 +9,7 @@ class Config {
     static DB_NAME = process.env.DB_NAME;
     static privateKey = process.env.PRIVATE_KEY;
     static adminToken = process.env.ADMIN_TOKEN;
+    static userTokenLength = parseInt(process.env.USER_TOKEN_LENGTH) || 24;
 }
 
 console.log(Config.MONGODB_HOST);
