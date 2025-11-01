@@ -26,9 +26,9 @@ function SetupPage(props) {
       // On successful authentication, store userId in localStorage
       if (res.status === 200) {
         localStorage.setItem("userId", data.userId);
+        localStorage.setItem("token", data.token);
         localStorage.setItem("serverUrl", `${httpProtocol}://${serverUrl}`);
-        props.setIsSettingUp(false);
-        document.cookie = res.cookie;
+        props.setViewName('start');
       } else {
         console.error("Authentication failed: " + data.message);
       }
@@ -47,7 +47,7 @@ function SetupPage(props) {
     return (
       <>
         <div className="back-button">
-            <IconButton onClick={() => props.setIsSettingUp(false)}><ArrowBackIcon sx={{color: "white"}}/></IconButton>
+            <IconButton onClick={() => props.setViewName('start')}><ArrowBackIcon sx={{color: "white"}}/></IconButton>
         </div>
 
         <div className="setup-container">

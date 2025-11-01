@@ -4,11 +4,24 @@ import SetupPage from "./SetupPage";
 
 
 const MainPage = () => {
-    const [isSettingUp, setIsSettingUp] = useState(false);
+    const [viewName, setViewName] = useState("start");
+
+    const centerView = () => {
+      switch(viewName) {
+
+        case "setup":   return <SetupPage setViewName={setViewName}/>;
+        case "start":   return <StartPage setViewName={setViewName}/>;
+        case "user": return <div />;
+        case "settings":  return <div />;
+        case "help":     return <div />;
+
+        default:      return <h1>No view match</h1>
+      }
+    }
 
     return (
         <>
-            {isSettingUp ? <SetupPage setIsSettingUp={setIsSettingUp}/> : <StartPage setIsSettingUp={setIsSettingUp}/>}
+            {centerView()}
         </>
     );
 }   

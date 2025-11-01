@@ -5,6 +5,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 const StartPage = (props) => {
     const [userId, setUserId] = useState(null);
+    const [token, setToken] = useState(null);
     const [serverUrl, setServerUrl] = useState(null);
     const [userInfo, setUserInfo] = useState({});
     const [admin, setAdmin] = useState(false);
@@ -19,16 +20,24 @@ const StartPage = (props) => {
             setServerUrl(storedServerUrl);
         } else {
             setUserId(null);
+            props.setViewName('start');
+        }
+        const storedToken = localStorage.getItem("token");
+        if (storedToken) {
+            setToken(storedToken);
+        } else {
+            setUserId(null);
+            props.setViewName('start');
         }
     }
 
     const fetchUserInfo = () => {
         const res = fetch(`${serverUrl}/api/user/info`, {
                 method: "GET",
-                credentials: "include",
                 headers: {
                     "Content-Type": "application/json",
-                },
+                    'Authorization': `Bearer ${token}`,
+                }
             })
             .then(response => response.json())
             .then(data => { 
@@ -66,7 +75,10 @@ const StartPage = (props) => {
         // Logic to start the party
         const res = await fetch(`${serverUrl}/api/party/start`, {
             method: "POST",
-            credentials: "include"
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+            }
         });
 
       const data = await res.json();
@@ -79,11 +91,11 @@ const StartPage = (props) => {
     return (
         <div>
         <div className="user-info"> 
-            {admin ? <AdminPanelSettingsIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> : <AccountCircleIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> }
+            {userId && (admin ? <AdminPanelSettingsIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> : <AccountCircleIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> )}
         </div>
         {userId ? 
         <Button variant="contained" size="medium" color="warning" onClick={handleStartParty}>Start FlickShare</Button> :
-        <Button variant="contained" size="medium" color="warning" onClick={()=>props.setIsSettingUp(true)}>Setup FlickShare</Button>
+        <Button variant="contained" size="medium" color="warning" onClick={()=>props.setViewName('setup')}>Setup FlickShare</Button>
         }
         </div>
     );
