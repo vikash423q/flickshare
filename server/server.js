@@ -63,6 +63,6 @@ setup();
 
 
 // Start the server
-app.listen(Config.PORT, () => {
+server.listen(Config.PORT, '0.0.0.0', () => {
   console.log(`Listening on port ${Config.PORT}`)
 });
