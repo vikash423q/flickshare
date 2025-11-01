@@ -1,27 +1,36 @@
 import { useState } from "react";
-import "./Setup.css";
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import "../Setup.css";
 
-function SetupPage() {
+function SetupPage(props) {
+    const [useHttps, setUseHttps] = useState(true);
     const [serverUrl, setServerUrl] = useState("");
     const [password, setPassword] = useState("");
 
     const handleConnect = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/setup", {
+      const httpProtocol = useHttps ? "https" : "http";
+      const res = await fetch(`${httpProtocol}://${serverUrl}/api/user/authenticate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          serverUrl,
           token: password,
         }),
       });
 
       const data = await res.json();
-      alert(data.message);
+      // On successful authentication, store userId in localStorage
+      if (res.status === 200) {
+        localStorage.setItem("userId", data.userId);
+        props.setIsSettingUp(false);
+      } else {
+        console.error("Authentication failed: " + data.message);
+      }
     } catch (error) {
-      alert("Error connecting to server");
       console.error(error);
     }
   };
@@ -34,7 +43,13 @@ function SetupPage() {
     };
 
     return (
+      <>
+        <div className="back-button">
+            <IconButton onClick={() => props.setIsSettingUp(false)}><ArrowBackIcon sx={{color: "white"}}/></IconButton>
+        </div>
+
         <div className="setup-container">
+
             <h2 className="setup-heading">Setup FlickShare</h2>
 
             <div className="row">
@@ -55,20 +70,13 @@ function SetupPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                 />
-
             </div>
 
-            <button className="setup-btn" onClick={handleConnect}>
+            <Button onClick={handleConnect} size="medium" variant="contained" color="warning">
                 Connect
-            </button>
-
-            {/* ✅ New Button */}
-            <button className="setup-btn generate-btn" onClick={handleGenerateToken}>
-                Generate Token
-            </button>
-
-            <p className="version">FlickShare v1.0.0</p>
+            </Button>
         </div>
+      </>
     );
 }
 

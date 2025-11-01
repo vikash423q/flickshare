@@ -8,7 +8,7 @@ const StartPage = (props) => {
         // fetch user ID from local storage
         const storedUserId = localStorage.getItem("userId");
         if (storedUserId) {
-        setUserId(storedUserId);
+            setUserId(storedUserId);
         }
     }, []);
 

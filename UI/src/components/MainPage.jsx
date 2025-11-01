@@ -7,9 +7,9 @@ const MainPage = () => {
     const [isSettingUp, setIsSettingUp] = useState(false);
 
     return (
-        <div className="main-page">
-            {isSettingUp ? <SetupPage /> : <StartPage setIsSettingUp={setIsSettingUp}/>}
-        </div>
+        <>
+            {isSettingUp ? <SetupPage setIsSettingUp={setIsSettingUp}/> : <StartPage setIsSettingUp={setIsSettingUp}/>}
+        </>
     );
 }   
 
