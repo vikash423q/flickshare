@@ -1,8 +1,7 @@
 import User from '../model/user.js';
 import jwt from 'jsonwebtoken';
 import Config from '../config.js';
-import crypto from 'crypto';
-import { generateCuteName } from '../util.js';
+import { generateCuteName, generateHexToken } from '../util.js';
 
 
 const authenticate = (req, res) => {
@@ -10,7 +9,7 @@ const authenticate = (req, res) => {
     User.findOne({ token: req.body.token })
     .then(user => {
         const oneYearMs = 365 * 24 * 60 * 60 * 1000; // 365 days in milliseconds
-        var token = jwt.sign({ userId: user.userId }, Config.privateKey);
+        var token = jwt.sign({ userId: user.userId, userName: user.name }, Config.privateKey);
         res.cookie('token', token, {expires: new Date(Date.now() + oneYearMs), secure: false, httpOnly: false});
         return res.status(200).send({ message: 'Authenticated', userId: user.userId , token: token});
         })
@@ -63,12 +62,6 @@ const updateUserInfo = (req, res) => {
     })
 }
 
-
-function generateHexToken(length = 10) {
-  return crypto.randomBytes(Math.ceil(length / 2))
-               .toString('hex')
-               .slice(0, length);
-}
 
 const generateUserToken = (req, res) => {
     User.findOne({ userId: req.userId })
