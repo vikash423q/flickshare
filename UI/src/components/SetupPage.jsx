@@ -28,6 +28,7 @@ function SetupPage(props) {
         localStorage.setItem("userId", data.userId);
         localStorage.setItem("serverUrl", `${httpProtocol}://${serverUrl}`);
         props.setIsSettingUp(false);
+        document.cookie = res.cookie;
       } else {
         console.error("Authentication failed: " + data.message);
       }

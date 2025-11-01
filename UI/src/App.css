@@ -61,6 +61,13 @@ body {
   left: 16px;
 }
 
+.user-info {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: white;
+}
+
 .version {
   margin-top: 25px;
   font-size: 12px;
