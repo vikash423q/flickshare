@@ -1,18 +1,14 @@
-import { useState } from 'react'
-import './App.css' 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SetupLauncher from "./components/SetupLauncher";
-import SetupPage from "./components/SetupPage";
+import MainPage from "./components/MainPage";
+
+import "./App.css";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<SetupLauncher />} />
-        <Route path="/setup" element={<SetupPage />} />
-      </Routes>
-    </BrowserRouter>
+    <div className="setup-container">
+      <MainPage />
+      <p className="version">FlickShare v1.0.0</p>
+    </div>
   );
 }
 
-export default App ;
+export default App;

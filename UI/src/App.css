@@ -1,3 +1,7 @@
+body {
+  background-image: linear-gradient(to right, black, grey);
+}
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -39,4 +43,20 @@
 
 .read-the-docs {
   color: #888;
+}
+
+.setup-container {
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.version {
+  margin-top: 25px;
+  font-size: 12px;
+  opacity: 0.8;
 }

@@ -1,18 +1,30 @@
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import Button from '@mui/material/Button';
+
 import "./Setup.css";
 
 function SetupLauncher() {
-  const navigate = useNavigate();
+  const [userId, setUserId] = useState(null);
+  const [isSettingUp, setIsSettingUp] = useState(false);
 
-  const handleClick = () => {
-    navigate("/setup");
-  };
+  useEffect(() => {
+    // fetch user ID from local storage
+    const storedUserId = localStorage.getItem("userId");
+    if (storedUserId) {
+      setUserId(storedUserId);
+    }
+  }, []);
+
+  const handleStartParty = () => {
+    // Logic to start the party
+  }
 
   return (
     <div className="setup-container">
-      <button className="setup-btn" onClick={handleClick}>
-        Setup FlickShare
-      </button>
+      {userId ? 
+      <Button variant="contained" color="warning" onClick={handleStartParty}>Start FlickShare</Button> :
+      <Button variant="contained" color="warning" onClick={()=>setIsSettingUp(true)}>Setup FlickShare</Button>
+      }
       <p className="version">FlickShare v1.0.0</p>
     </div>
   );
