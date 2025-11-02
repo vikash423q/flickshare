@@ -6,13 +6,13 @@ import "../Setup.css";
 
 function SetupPage(props) {
     const [useHttps, setUseHttps] = useState(true);
-    const [serverUrl, setServerUrl] = useState("");
-    const [password, setPassword] = useState("");
+    const [backendUrl, setbackendUrl] = useState("flickshare.vikashgaurav.com");
+    const [password, setPassword] = useState("supersecrettoken123");
 
     const handleConnect = async () => {
     try {
       const httpProtocol = useHttps ? "https" : "http";
-      const res = await fetch(`${httpProtocol}://${serverUrl}/api/user/authenticate`, {
+      const res = await fetch(`${httpProtocol}://${backendUrl}/api/user/authenticate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -25,9 +25,7 @@ function SetupPage(props) {
       const data = await res.json();
       // On successful authentication, store userId in localStorage
       if (res.status === 200) {
-        localStorage.setItem("userId", data.userId);
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("serverUrl", `${httpProtocol}://${serverUrl}`);
+        chrome.storage.local.set({ backendUrl: `${httpProtocol}://${backendUrl}`, userId: data.userId, token: data.token });
         props.setViewName('start');
       } else {
         console.error("Authentication failed: " + data.message);
@@ -36,13 +34,6 @@ function SetupPage(props) {
       console.error(error);
     }
   };
-
-
-    // ✅ Generate Token Function
-    const handleGenerateToken = () => {
-        const newToken = Math.random().toString(36).substr(2, 12); // random 12-char token
-        setPassword(newToken);
-    };
 
     return (
       <>
@@ -59,8 +50,8 @@ function SetupPage(props) {
                 <input
                     className="setup-input"
                     type="text"
-                    value={serverUrl}
-                    onChange={(e) => setServerUrl(e.target.value)}
+                    value={backendUrl}
+                    onChange={(e) => setbackendUrl(e.target.value)}
                 />
             </div>
 

@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import Button from '@mui/material/Button';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import Link from '@mui/material/Link';
+import UsersPage from "./UsersPage";
+import SetupPage from "./SetupPage"
 
 const StartPage = (props) => {
     const [userId, setUserId] = useState(null);
@@ -97,8 +100,56 @@ const StartPage = (props) => {
         <Button variant="contained" size="medium" color="warning" onClick={handleStartParty}>Start FlickShare</Button> :
         <Button variant="contained" size="medium" color="warning" onClick={()=>props.setViewName('setup')}>Setup FlickShare</Button>
         }
-        </div>
-    );
+
+        {/* Links for both admin & normal user */}
+{userId && (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      gap: "20px",
+      marginTop: "15px"
+      
+    }}
+  >
+    {/* Only admin sees "Users" */}
+    {admin && (
+      <Link
+        href="#"
+        underline="always"
+        color="inherit"
+       onClick={() => props.setViewName('UsersPage')}
+        sx={{ cursor: "pointer" , fontWeight: "bold" }}
+      >
+        Users
+      </Link>
+    )}
+
+    {/* common links */}
+    <Link
+      href="#"
+      underline="always"
+      color="inherit"
+      onClick={() => props.setViewName('setup')}
+      sx={{ cursor: "pointer", fontWeight: "bold" }}
+    >
+      Settings
+    </Link>
+
+    <Link
+      href="#"
+      underline="always"
+      color="inherit"
+      onClick={() => props.setViewName('help')}
+      sx={{ cursor: "pointer", fontWeight: "bold" }}
+    >
+      Help
+    </Link>
+  </div>
+)}
+  </div>
+);
+        
 }
 
 export default StartPage;
