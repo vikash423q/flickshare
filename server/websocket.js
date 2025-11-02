@@ -1,5 +1,6 @@
 import { createClient } from "redis";
 
+import jwt from 'jsonwebtoken';
 import Config from './config.js';
 
 // Redis clients - need separate clients for pub and sub
@@ -37,7 +38,9 @@ async function handleRedisMessage(message, channel) {
     // Broadcast to all WebSocket connections in this room
     connections.forEach(ws => {
       if (ws.readyState === ws.OPEN) {
-        ws.send(payload);
+        if (!(data.actionType === 'media' && data.userId === ws.userId)){
+          ws.send(payload);
+        }
       }
     });
   }
@@ -67,39 +70,52 @@ async function subscribeToRoom(roomId) {
 async function publishToRoom(roomId, message) {
   const channel = `room:${roomId}`;
   await publisher.publish(channel, JSON.stringify(message));
-  console.log(`📤 Published to ${channel}`);
+  console.log(`📤 Published to ${channel} ${JSON.stringify(message)}`);
 }
 
 // WebSocket connection handler
 const handleWebSocketConnection = (ws) => {
   console.log('🔌 New WebSocket connection');
-  
-  let currentRoom = null;
-  let userId = null;
+    
+    let userId = null;
+    let currentRoom = null ;
+    let name = null;
 
   ws.on('message', async (data) => {
     try {
       const message = JSON.parse(data.toString());
+      if (message.type === 'ping') return;
+      var decoded = jwt.verify(message.token, Config.privateKey);
+      name = decoded.userName;
+      userId = decoded.userId;
+      currentRoom = message.roomId;
+      const roomAvailable = roomConnections.has(currentRoom);
       
       switch (message.type) {
         case 'join':
-          // Join a room
-          userId = message.userId;
-          currentRoom = message.roomId;
-          
           // Add connection to room map
-          if (!roomConnections.has(currentRoom)) {
+          if(!roomAvailable) {
             roomConnections.set(currentRoom, new Set());
           }
-          roomConnections.get(currentRoom).add(ws);
+          const connections = roomConnections.get(currentRoom);
+          // Check if this connection already exists
+          if (!connections.has(ws)) {
+            ws.userId = userId;
+            connections.add(ws);
+            console.log(`Client added to room ${currentRoom}`);
+          } else {
+            console.log(`Client already connected to room ${currentRoom}`);
+          }
           
           // Subscribe this worker to the room channel
           await subscribeToRoom(currentRoom);
           
           // Notify others
           await publishToRoom(currentRoom, {
+            actionType: 'system',
             type: 'user_joined',
             userId,
+            name,
             roomId: currentRoom,
             timestamp: Date.now()
           });
@@ -107,6 +123,8 @@ const handleWebSocketConnection = (ws) => {
           ws.send(JSON.stringify({
             type: 'joined',
             roomId: currentRoom,
+            userId: userId,
+            name,
             message: `Joined room ${currentRoom}`
           }));
           
@@ -114,18 +132,11 @@ const handleWebSocketConnection = (ws) => {
           break;
           
         case 'message':
-          // Send chat message
-          if (!currentRoom) {
-            ws.send(JSON.stringify({ 
-              type: 'error', 
-              message: 'Not in a room' 
-            }));
-            return;
-          }
-          
           const chatMessage = {
+            actionType: 'chat',
             type: 'message',
             roomId: currentRoom,
+            name,
             userId,
             content: message.content,
             timestamp: Date.now()
@@ -137,12 +148,14 @@ const handleWebSocketConnection = (ws) => {
           
         case 'leave':
           // Leave room
-          if (currentRoom && roomConnections.has(currentRoom)) {
+          if (roomAvailable) {
             roomConnections.get(currentRoom).delete(ws);
             
             await publishToRoom(currentRoom, {
+              actionType: 'system',
               type: 'user_left',
               userId,
+              name,
               roomId: currentRoom,
               timestamp: Date.now()
             });
@@ -153,6 +166,20 @@ const handleWebSocketConnection = (ws) => {
             currentRoom = null;
           }
           break;
+
+        case 'video_state':
+          await publishToRoom(currentRoom, {
+              actionType: 'media',
+              type: 'video_state',
+              userId,
+              name,
+              roomId: currentRoom,
+              isPlaying: message.isPlaying,
+              duration: message.duration,
+              currentTime: message.currentTime,
+          });
+          break;
+
       }
     } catch (error) {
       console.error('❌ Error handling message:', error);
@@ -169,8 +196,10 @@ const handleWebSocketConnection = (ws) => {
       roomConnections.get(currentRoom).delete(ws);
       
       await publishToRoom(currentRoom, {
+        actionType: 'system',
         type: 'user_left',
         userId,
+        name,
         roomId: currentRoom,
         timestamp: Date.now()
       });
@@ -178,6 +207,8 @@ const handleWebSocketConnection = (ws) => {
       console.log(`🔌 Connection closed for user ${userId}`);
     }
   });
+
+  ws.on('pong', () => {ws.isAlive=true});
 }
 
 
