@@ -23,9 +23,9 @@ function SetupPage(props) {
       });
 
       const data = await res.json();
-      // On successful authentication, store userId in localStorage
+      // On successful authentication, store userId in chrome.storage
       if (res.status === 200) {
-        chrome.storage.local.set({ backendUrl: `${httpProtocol}://${backendUrl}`, userId: data.userId, token: data.token });
+        chrome.storage.local.set({ backendUrl: `${httpProtocol}://${backendUrl}`, userId: data.userId, name: data.name, token: data.token });
         props.setViewName('start');
       } else {
         console.error("Authentication failed: " + data.message);

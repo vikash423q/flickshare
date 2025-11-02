@@ -1,22 +1,61 @@
 import React, { useState, useEffect, useRef } from 'react';
+import getVideoController from '../content/video';
+
+
+const formatTime = (seconds) => {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  
+  return `${hrs.toString().padStart(2, '0')}:` +
+         `${mins.toString().padStart(2, '0')}:` +
+         `${secs.toString().padStart(2, '0')}`;
+}
 
 const SidePanel = ({ onClose }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [name, setName] = useState('');
+  const [token, setToken] = useState(null);
   const [roomId, setRoomId] = useState('');
   const [userId, setUserId] = useState('');
   const [backendUrl, setbackendUrl] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'sync'
+  const pingIntervalRef = useRef(null);
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default dark mode
+
+  useEffect(() => {
+    localStorage.setItem('sidepanel_darkmode', isDarkMode);
+  }, [isDarkMode]);
+
+  // Theme colors
+  const theme = {
+    bg: isDarkMode ? '#1a1a1a' : '#ffffff',
+    bgSecondary: isDarkMode ? '#2d2d2d' : '#f9fafb',
+    bgTertiary: isDarkMode ? '#3d3d3d' : '#fafafa',
+    text: isDarkMode ? '#e5e5e5' : '#1f2937',
+    textSecondary: isDarkMode ? '#a0a0a0' : '#6b7280',
+    textMuted: isDarkMode ? '#707070' : '#9ca3af',
+    border: isDarkMode ? '#404040' : '#e5e7eb',
+    messageBg: isDarkMode ? '#2a2a2a' : 'white',
+    systemBg: isDarkMode ? '#3d2a1f' : '#fef3c7',
+    systemText: isDarkMode ? '#fbbf24' : '#92400e',
+    inputBg: isDarkMode ? '#2d2d2d' : 'white',
+    inputBorder: isDarkMode ? '#404040' : '#d1d5db',
+  };
   
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
 
+   useEffect(() => {
+    chrome.storage.local.set({darkMode : isDarkMode})
+  }, [isDarkMode]);
+
   useEffect(() => {
     // Load saved user ID and room ID
-    chrome.storage.local.get(['userId', 'roomId', 'name', 'backendUrl'], (result) => {
+    chrome.storage.local.get(['userId', 'roomId', 'name', 'token', 'backendUrl', 'darkMode'], (result) => {
       if (result.userId) {
         setUserId(result.userId);
       }
@@ -26,10 +65,17 @@ const SidePanel = ({ onClose }) => {
       if (result.name) {
         setName(result.name);
       }
+      if (result.token) {
+        setToken(result.token);
+      }
       if (result.backendUrl) {
         setbackendUrl(result.backendUrl);
       }
+      if (result.darkMode) {
+        setIsDarkMode(result.darkMode === 'true');
+      }
     });
+
   }, []);
 
   useEffect(() => {
@@ -42,13 +88,36 @@ const SidePanel = ({ onClose }) => {
     if (roomId) {
       chrome.storage.local.set({ roomId }, () => {  
         connectWebSocket();
-      });
+      })
     }
   }, [roomId]);
 
   const toWebSocketURL = (url) => {
-  return url.replace(/^http(s?):\/\//, 'ws$1://');
-}
+    return url.replace(/^http(s?):\/\//, 'ws$1://');
+  }
+
+  // In your SidePanel component
+  useEffect(() => {
+    if(wsRef.current){
+      const controller = getVideoController();
+    
+      const unsubscribe = controller.subscribe((state) => {
+        // Send to WebSocket
+        wsRef.current.send(JSON.stringify({
+          actionType: 'media',
+          type: 'video_state',
+          isPlaying: state.isPlaying,
+          duration: state.duration,
+          currentTime: state.currentTime,
+          roomId: roomId,
+          token: token
+        }));
+      });
+
+      return () => unsubscribe();
+    }
+
+  }, [isConnected]);
 
   const connectWebSocket = () => {
     if (wsRef.current) return;
@@ -59,11 +128,19 @@ const SidePanel = ({ onClose }) => {
       setIsConnected(true);
       wsRef.current.send(JSON.stringify({
         type: 'join',
-        userId,
         roomId,
-        supportsVideo: false
+        token,
       }));
       addSystemMessage(`Connected to room: ${roomId}`);
+
+      pingIntervalRef.current = setInterval(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            type: 'ping',
+            timestamp: Date.now()
+          }));
+        }
+      }, 12000);
     };
 
     wsRef.current.onmessage = (event) => {
@@ -74,6 +151,11 @@ const SidePanel = ({ onClose }) => {
     wsRef.current.onclose = () => {
       setIsConnected(false);
       addSystemMessage('Disconnected');
+      disconnectWebSocket();
+
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+      }
     };
 
     wsRef.current.onerror = (error) => {
@@ -99,11 +181,15 @@ const SidePanel = ({ onClose }) => {
         break;
       case 'user_joined':
         if (data.userId !== userId) {
-          addSystemMessage(`${data.userId} joined`);
+          addSystemMessage(`${data.name} joined`);
         }
         break;
       case 'user_left':
-        addSystemMessage(`${data.userId} left`);
+        addSystemMessage(`${data.name} left`);
+        break;
+      case 'pong':
+        const latencyMs = Date.now() - JSON.parse(data).timestamp;
+        console.log(`Latency: ${latencyMs}ms`);
         break;
     }
   };
@@ -111,6 +197,7 @@ const SidePanel = ({ onClose }) => {
   const addMessage = (user, content, timestamp) => {
     setMessages(prev => [...prev, {
       id: Date.now() + Math.random(),
+      name,
       user,
       content,
       timestamp: timestamp || Date.now(),
@@ -126,11 +213,12 @@ const SidePanel = ({ onClose }) => {
       timestamp: Date.now()
     }]);
   };
-
   const sendMessage = () => {
     if (!inputMessage.trim() || !isConnected) return;
 
     wsRef.current.send(JSON.stringify({
+      roomId,
+      token,
       type: 'message',
       content: inputMessage
     }));
@@ -170,51 +258,66 @@ const SidePanel = ({ onClose }) => {
  
     }, [isOpen]);
 
+  useEffect(() => {
+
+  }, [isConnected]);
+
   return (
     <div style={{ pointerEvents: 'all' }}>
       {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.opacity = '0.5';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.opacity = '0.15';
+        }}
         style={{
           position: 'fixed',
           right: isOpen ? '280px' : '0',
           top: '50%',
           transform: 'translateY(-50%)',
-          width: '40px',
-          height: '80px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          width: '24px',
+          height: '50px',
+          background: 'rgba(0, 0, 0, 0.6)',
           border: 'none',
-          borderRadius: isOpen ? '8px 0 0 8px' : '0',
+          borderRadius: isOpen ? '6px 0 0 6px' : '0',
           cursor: 'pointer',
           zIndex: 2147483646,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: 'white',
-          fontSize: '20px',
-          boxShadow: '-2px 0 10px rgba(0,0,0,0.2)',
-          transition: 'right 0.3s ease',
-          fontFamily: 'system-ui, -apple-system, sans-serif'
+          color: 'rgba(255, 255, 255, 0.7)',
+          fontSize: '14px',
+          boxShadow: 'none',
+          transition: 'right 0.3s ease, opacity 0.2s ease',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          opacity: '0.25',
+          backdropFilter: 'blur(4px)'
         }}
       >
-        {isOpen ? '›' : '‹'}
+        {isOpen ? '››' : '‹‹'}
       </button>
 
       {/* Side Panel */}
       <div
         style={{
           position: 'fixed',
-          right: isOpen ? '0' : '-450px',
+          right: isOpen ? '0' : '-300px',
           top: '0',
           width: '280px',
           height: '100vh',
-          background: 'white',
-          boxShadow: '-2px 0 20px rgba(0,0,0,0.15)',
+          background: theme.bg,
+          boxShadow: isDarkMode 
+            ? '-2px 0 20px rgba(0,0,0,0.5)' 
+            : '-2px 0 20px rgba(0,0,0,0.15)',
           zIndex: 2147483647,
           transition: 'right 0.3s ease',
           display: 'flex',
           flexDirection: 'column',
-          fontFamily: 'system-ui, -apple-system, sans-serif'
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          color: theme.text
         }}
       >
         {/* Header */}
@@ -224,38 +327,67 @@ const SidePanel = ({ onClose }) => {
           padding: '20px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'flex-start'
         }}>
-          <div>
+          <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
               Watch Together 🎬
             </h2>
             <p style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
               Room: {roomId} • {isConnected ? '🟢 Online' : '🔴 Offline'}
             </p>
+            <p style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
+              You: {name}
+            </p>
           </div>
-          <button
-            onClick={handleClose}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: 'none',
-              color: 'white',
-              width: '32px',
-              height: '32px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '18px'
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                width: '32px',
+                height: '32px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
+            </button>
+            {/* Close Button */}
+            <button
+              onClick={handleClose}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                width: '32px',
+                height: '32px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
         <div style={{
           display: 'flex',
-          borderBottom: '1px solid #e5e7eb',
-          background: '#f9fafb'
+          borderBottom: `1px solid ${theme.border}`,
+          background: theme.bgSecondary
         }}>
           <button
             onClick={() => setActiveTab('chat')}
@@ -263,12 +395,13 @@ const SidePanel = ({ onClose }) => {
               flex: 1,
               padding: '12px',
               border: 'none',
-              background: activeTab === 'chat' ? 'white' : 'transparent',
+              background: activeTab === 'chat' ? theme.bg : 'transparent',
               borderBottom: activeTab === 'chat' ? '2px solid #667eea' : '2px solid transparent',
               cursor: 'pointer',
               fontSize: '14px',
               fontWeight: '500',
-              color: activeTab === 'chat' ? '#667eea' : '#6b7280'
+              color: activeTab === 'chat' ? '#667eea' : theme.textSecondary,
+              transition: 'all 0.2s'
             }}
           >
             💬 Chat
@@ -279,12 +412,13 @@ const SidePanel = ({ onClose }) => {
               flex: 1,
               padding: '12px',
               border: 'none',
-              background: activeTab === 'sync' ? 'white' : 'transparent',
+              background: activeTab === 'sync' ? theme.bg : 'transparent',
               borderBottom: activeTab === 'sync' ? '2px solid #667eea' : '2px solid transparent',
               cursor: 'pointer',
               fontSize: '14px',
               fontWeight: '500',
-              color: activeTab === 'sync' ? '#667eea' : '#6b7280'
+              color: activeTab === 'sync' ? '#667eea' : theme.textSecondary,
+              transition: 'all 0.2s'
             }}
           >
             🔄 Sync
@@ -297,38 +431,56 @@ const SidePanel = ({ onClose }) => {
             <>
               {/* Setup Section */}
               {!isConnected && (
-                <div style={{ padding: '15px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                <div style={{ 
+                  padding: '15px', 
+                  background: theme.bgSecondary, 
+                  borderBottom: `1px solid ${theme.border}` 
+                }}>
                   <div style={{ marginBottom: '10px' }}>
-                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
+                    <label style={{ 
+                      fontSize: '12px', 
+                      color: theme.textSecondary, 
+                      display: 'block', 
+                      marginBottom: '5px' 
+                    }}>
                       Your Name
                     </label>
                     <input
                       type="text"
-                      value={userId}
-                      onChange={(e) => setUserId(e.target.value)}
+                      value={name}
+                      disabled
                       style={{
                         width: '100%',
                         padding: '8px',
-                        border: '1px solid #d1d5db',
+                        border: `1px solid ${theme.inputBorder}`,
                         borderRadius: '6px',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        background: theme.inputBg,
+                        color: theme.text
                       }}
                     />
                   </div>
                   <div style={{ marginBottom: '10px' }}>
-                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
+                    <label style={{ 
+                      fontSize: '12px', 
+                      color: theme.textSecondary, 
+                      display: 'block', 
+                      marginBottom: '5px' 
+                    }}>
                       Room ID
                     </label>
                     <input
                       type="text"
                       value={roomId}
-                      onChange={(e) => setRoomId(e.target.value)}
+                      disabled
                       style={{
                         width: '100%',
                         padding: '8px',
-                        border: '1px solid #d1d5db',
+                        border: `1px solid ${theme.inputBorder}`,
                         borderRadius: '6px',
-                        fontSize: '14px'
+                        fontSize: '14px',
+                        background: theme.inputBg,
+                        color: theme.text
                       }}
                     />
                   </div>
@@ -356,10 +508,15 @@ const SidePanel = ({ onClose }) => {
                 flex: 1,
                 overflowY: 'auto',
                 padding: '15px',
-                background: '#fafafa'
+                background: theme.bgTertiary
               }}>
                 {messages.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: '#9ca3af', marginTop: '50px', fontSize: '14px' }}>
+                  <div style={{ 
+                    textAlign: 'center', 
+                    color: theme.textMuted, 
+                    marginTop: '50px', 
+                    fontSize: '14px' 
+                  }}>
                     {isConnected ? 'No messages yet. Say hi! 👋' : 'Connect to start chatting'}
                   </div>
                 ) : (
@@ -369,25 +526,45 @@ const SidePanel = ({ onClose }) => {
                       style={{
                         marginBottom: '12px',
                         padding: msg.type === 'system' ? '8px 12px' : '10px 14px',
-                        background: msg.type === 'system' ? '#fef3c7' : msg.user === userId ? '#667eea' : 'white',
-                        color: msg.type === 'system' ? '#92400e' : msg.user === userId ? 'white' : '#1f2937',
+                        background: msg.type === 'system' 
+                          ? theme.systemBg
+                          : msg.user === userId 
+                            ? '#667eea' 
+                            : theme.messageBg,
+                        color: msg.type === 'system' 
+                          ? theme.systemText
+                          : msg.user === userId 
+                            ? 'white' 
+                            : theme.text,
                         borderRadius: '10px',
                         fontSize: '14px',
-                        boxShadow: msg.type === 'system' ? 'none' : '0 1px 3px rgba(0,0,0,0.1)',
+                        boxShadow: msg.type === 'system' 
+                          ? 'none' 
+                          : isDarkMode 
+                            ? '0 1px 3px rgba(0,0,0,0.3)' 
+                            : '0 1px 3px rgba(0,0,0,0.1)',
                         fontStyle: msg.type === 'system' ? 'italic' : 'normal',
                         marginLeft: msg.user === userId ? '40px' : '0',
                         marginRight: msg.user === userId ? '0' : '40px'
                       }}
                     >
                       {msg.type === 'message' && msg.user !== userId && (
-                        <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '4px', opacity: 0.8 }}>
-                          {msg.user}
+                        <div style={{ 
+                          fontSize: '12px', 
+                          fontWeight: '600', 
+                          marginBottom: '4px', 
+                          opacity: 0.8 
+                        }}>
+                          {msg.name}
                         </div>
                       )}
                       <div>{msg.content}</div>
                       {msg.type === 'message' && (
                         <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
-                          {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(msg.timestamp).toLocaleTimeString('en-US', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
                         </div>
                       )}
                     </div>
@@ -400,8 +577,8 @@ const SidePanel = ({ onClose }) => {
               {isConnected && (
                 <div style={{
                   padding: '15px',
-                  borderTop: '1px solid #e5e7eb',
-                  background: 'white'
+                  borderTop: `1px solid ${theme.border}`,
+                  background: theme.bg
                 }}>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <input
@@ -413,10 +590,12 @@ const SidePanel = ({ onClose }) => {
                       style={{
                         flex: 1,
                         padding: '10px 14px',
-                        border: '1px solid #d1d5db',
+                        border: `1px solid ${theme.inputBorder}`,
                         borderRadius: '8px',
                         fontSize: '14px',
-                        outline: 'none'
+                        outline: 'none',
+                        background: theme.inputBg,
+                        color: theme.text
                       }}
                     />
                     <button
@@ -424,7 +603,7 @@ const SidePanel = ({ onClose }) => {
                       disabled={!inputMessage.trim()}
                       style={{
                         padding: '10px 20px',
-                        background: inputMessage.trim() ? '#667eea' : '#d1d5db',
+                        background: inputMessage.trim() ? '#667eea' : theme.inputBorder,
                         color: 'white',
                         border: 'none',
                         borderRadius: '8px',
@@ -442,15 +621,15 @@ const SidePanel = ({ onClose }) => {
           ) : (
             // Sync Tab
             <div style={{ padding: '20px' }}>
-              <h3 style={{ fontSize: '16px', marginBottom: '15px', color: '#1f2937' }}>
+              <h3 style={{ fontSize: '16px', marginBottom: '15px', color: theme.text }}>
                 Video Synchronization
               </h3>
               <div style={{
                 padding: '15px',
-                background: '#fef3c7',
+                background: theme.systemBg,
                 borderRadius: '8px',
                 fontSize: '13px',
-                color: '#92400e',
+                color: theme.systemText,
                 marginBottom: '15px'
               }}>
                 <strong>🚧 Coming Soon</strong><br/>
