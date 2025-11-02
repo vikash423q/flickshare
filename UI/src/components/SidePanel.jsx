@@ -4,8 +4,10 @@ const SidePanel = ({ onClose }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [name, setName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [userId, setUserId] = useState('');
+  const [backendUrl, setbackendUrl] = useState('');
   const [isConnected, setIsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'sync'
   
@@ -14,22 +16,44 @@ const SidePanel = ({ onClose }) => {
 
   useEffect(() => {
     // Load saved user ID and room ID
-    chrome.storage.local.get(['userId', 'roomId'], (result) => {
-      setUserId(result.userId || `user_${Math.random().toString(36).substr(2, 9)}`);
-      setRoomId(result.roomId || 'room-1');
+    chrome.storage.local.get(['userId', 'roomId', 'name', 'backendUrl'], (result) => {
+      if (result.userId) {
+        setUserId(result.userId);
+      }
+      if (result.roomId) {
+        setRoomId(result.roomId);
+      }
+      if (result.name) {
+        setName(result.name);
+      }
+      if (result.backendUrl) {
+        setbackendUrl(result.backendUrl);
+      }
     });
   }, []);
 
   useEffect(() => {
-    if (userId && roomId) {
-      chrome.storage.local.set({ userId, roomId });
+    if (userId) {
+      chrome.storage.local.set({ userId });
     }
-  }, [userId, roomId]);
+  }, [userId]);
+
+  useEffect(() => {
+    if (roomId) {
+      chrome.storage.local.set({ roomId }, () => {  
+        connectWebSocket();
+      });
+    }
+  }, [roomId]);
+
+  const toWebSocketURL = (url) => {
+  return url.replace(/^http(s?):\/\//, 'ws$1://');
+}
 
   const connectWebSocket = () => {
     if (wsRef.current) return;
 
-    wsRef.current = new WebSocket('ws://localhost:3000');
+    wsRef.current = new WebSocket(toWebSocketURL(backendUrl));
 
     wsRef.current.onopen = () => {
       setIsConnected(true);
@@ -133,6 +157,19 @@ const SidePanel = ({ onClose }) => {
     }, 300);
   };
 
+  useEffect(() => {
+      const video = document.querySelector('video');
+      const aspect = video.clientHeight / video.clientWidth;
+      if (isOpen) {
+        video.style.width = (video.clientWidth - 240) + 'px';
+        video.style.height = (video.clientWidth) * aspect + 'px'; 
+      } else {
+        video.style.width = (video.clientWidth + 240) + 'px';
+        video.style.height = (video.clientWidth) * aspect + 'px'; 
+      }
+ 
+    }, [isOpen]);
+
   return (
     <div style={{ pointerEvents: 'all' }}>
       {/* Toggle Button */}
@@ -140,7 +177,7 @@ const SidePanel = ({ onClose }) => {
         onClick={() => setIsOpen(!isOpen)}
         style={{
           position: 'fixed',
-          right: isOpen ? '410px' : '0',
+          right: isOpen ? '280px' : '0',
           top: '50%',
           transform: 'translateY(-50%)',
           width: '40px',
@@ -169,7 +206,7 @@ const SidePanel = ({ onClose }) => {
           position: 'fixed',
           right: isOpen ? '0' : '-450px',
           top: '0',
-          width: '450px',
+          width: '280px',
           height: '100vh',
           background: 'white',
           boxShadow: '-2px 0 20px rgba(0,0,0,0.15)',

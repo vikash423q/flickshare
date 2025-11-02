@@ -9,6 +9,7 @@ import SidePanel from '../components/SidePanel';
 let root = null;
 let container = null;
 let isActive = false;
+const PANEL_WIDTH = 300; // Width of the side panel in pixels
 
 // Create container for side panel
 const createContainer = () => {
@@ -22,7 +23,7 @@ const createContainer = () => {
     position: fixed;
     top: 0;
     right: 0;
-    width: 0;
+    width: ${PANEL_WIDTH}px;
     height: 100vh;
     z-index: 2147483647;
     pointer-events: none;
@@ -38,6 +39,7 @@ const initPanel = () => {
 
   const panelContainer = createContainer();
   root = ReactDOM.createRoot(panelContainer);
+  
   
   root.render(
     <React.StrictMode>

@@ -7,34 +7,30 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 const StartPage = (props) => {
     const [userId, setUserId] = useState(null);
     const [token, setToken] = useState(null);
-    const [serverUrl, setServerUrl] = useState(null);
+    const [backendUrl, setbackendUrl] = useState(null);
     const [userInfo, setUserInfo] = useState({});
     const [admin, setAdmin] = useState(false);
     const [currentTab, setCurrentTab] = useState(null);
 
     const setDataFromStorage = () => {
-        const storedUserId = localStorage.getItem("userId");
-        if (storedUserId) {
-            setUserId(storedUserId);
-        }
-        const storedServerUrl = localStorage.getItem("serverUrl");
-        if (storedServerUrl) {
-            setServerUrl(storedServerUrl);
-        } else {
-            setUserId(null);
-            props.setViewName('start');
-        }
-        const storedToken = localStorage.getItem("token");
-        if (storedToken) {
-            setToken(storedToken);
-        } else {
-            setUserId(null);
-            props.setViewName('start');
-        }
+        chrome.storage.local.get(['userId', 'token', 'backendUrl', 'name'], (result) => {
+            if (result.userId) {
+                setUserId(result.userId);
+            }
+            if (result.token) {
+                setToken(result.token);
+            }
+            if (result.backendUrl) {
+                setbackendUrl(result.backendUrl);
+            } else {
+                setUserId(null);
+                props.setViewName('start');
+            }
+        });
     }
 
     const fetchUserInfo = () => {
-        const res = fetch(`${serverUrl}/api/user/info`, {
+        const res = fetch(`${backendUrl}/api/user/info`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -45,6 +41,7 @@ const StartPage = (props) => {
             .then(data => { 
                 setUserInfo(data); 
                 setAdmin(data.admin);
+                chrome.storage.local.set({ name: data.name });
             })
             .catch(error => {
                 console.error("Error fetching user info:", error);
@@ -79,7 +76,7 @@ const StartPage = (props) => {
     const handleStartParty = async () => {
         console.log("Starting party...");
         // Logic to start the party
-        const res = await fetch(`${serverUrl}/api/rooms`, {
+        const res = await fetch(`${backendUrl}/api/rooms`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -91,10 +88,12 @@ const StartPage = (props) => {
         if (res.status === 200) { 
             console.log("Party started successfully:", data);
             const roomId = data.roomId;
-            localStorage.setItem("currentRoomId", roomId);
-            // Switch to the side panel view
-            // Wait for DOM to be ready
-            togglePanel();
+            chrome.storage.local.set({ roomId }, () => {
+                // Switch to the side panel view
+                // Wait for DOM to be ready
+                togglePanel();
+            });
+
          }
         else {
             console.error("Failed to start party: " + data.message);
