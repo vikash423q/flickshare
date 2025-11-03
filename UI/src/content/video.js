@@ -7,7 +7,31 @@ class RemoteControlBase {
     this.player = document.querySelector('video');
     this.stateSubscribers = new Set(); // Callbacks for state changes
     this.stateCheckInterval = null;
+    this.lastDateTime = this.getDateTime();
     this.lastState = null;
+    this.retryInterval = 2;
+    this.init();
+  }
+
+  getDateTime(){
+    return new Date().getTime()/1000;
+  }
+
+  init() {
+    const tryInit = () => {
+      this.player = document.querySelector('video');
+      if (this.player) {
+        console.log('🎬 Video player found');
+      } else if (this.retryCount < 100) {
+        this.retryCount++;
+        console.log(`⏳ Player not found, retrying (${this.retryCount}/${this.maxRetries})...`);
+        setTimeout(tryInit, this.retryInterval);
+      } else {
+        console.warn('⚠️ Failed to find video player after max retries');
+      }
+    };
+
+    tryInit();
   }
 
   /** --- Basic controls --- **/
@@ -147,6 +171,7 @@ class RemoteControlBase {
         });
         
         this.lastState = currentState;
+        this.lastDateTime = this.getDateTime();
       }
     }, interval);
   }
@@ -166,16 +191,17 @@ class RemoteControlBase {
     if (newState.isPlaying !== this.lastState.isPlaying) return true;
 
     // Check if duration changed (new video loaded)
-    if (Math.abs(newState.duration - this.lastState.duration) > 0.1) return true;
+    const dateTimeDiff = this.getDateTime() - this.lastDateTime;
+    const stateTimeDiff = newState.currentTime - this.lastState.currentTime;
 
     // Check if time jumped significantly (seek)
-    if (Math.abs(newState.currentTime - this.lastState.currentTime) > 2) return true;
+    if (newState.isPlaying && Math.abs(dateTimeDiff- stateTimeDiff) > 0.1) return true;
 
-    // Check if playback rate changed
-    if (newState.playbackRate !== this.lastState.playbackRate) return true;
+    // // Check if playback rate changed
+    // if (newState.playbackRate !== this.lastState.playbackRate) return true;
 
-    // Check if volume changed
-    if (Math.abs(newState.volume - this.lastState.volume) > 0.01) return true;
+    // // Check if volume changed
+    // if (Math.abs(newState.volume - this.lastState.volume) > 0.01) return true;
 
     return false;
   }
@@ -298,7 +324,7 @@ class NetflixControl extends RemoteControlBase {
 /** Supported site map **/
 export const supportedSites = {
   'youtube.com': YouTubeControl,
-  'netflix.com': NetflixControl,
+  // 'netflix.com': NetflixControl,
   'primevideo.com': PrimeVideoControl,
 };
 

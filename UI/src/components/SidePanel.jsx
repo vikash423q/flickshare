@@ -47,6 +47,7 @@ const SidePanel = ({ onClose }) => {
   };
   
   const wsRef = useRef(null);
+  const vcRef = useRef(null);
   const messagesEndRef = useRef(null);
 
    useEffect(() => {
@@ -70,9 +71,6 @@ const SidePanel = ({ onClose }) => {
       }
       if (result.backendUrl) {
         setbackendUrl(result.backendUrl);
-      }
-      if (result.darkMode) {
-        setIsDarkMode(result.darkMode === 'true');
       }
     });
 
@@ -98,10 +96,10 @@ const SidePanel = ({ onClose }) => {
 
   // In your SidePanel component
   useEffect(() => {
-    if(wsRef.current){
-      const controller = getVideoController();
+    if(isConnected){
+      vcRef.current = getVideoController();
     
-      const unsubscribe = controller.subscribe((state) => {
+      const unsubscribe = vcRef.current.subscribe((state) => {
         // Send to WebSocket
         wsRef.current.send(JSON.stringify({
           actionType: 'media',
@@ -114,9 +112,11 @@ const SidePanel = ({ onClose }) => {
         }));
       });
 
-      return () => unsubscribe();
+      return () => {
+        unsubscribe();
+        vcRef.current = null;
+      }
     }
-
   }, [isConnected]);
 
   const connectWebSocket = () => {
@@ -187,6 +187,9 @@ const SidePanel = ({ onClose }) => {
       case 'user_left':
         addSystemMessage(`${data.name} left`);
         break;
+      case 'video_state':
+        handleVideoState(data);
+        break;
       case 'pong':
         const latencyMs = Date.now() - JSON.parse(data).timestamp;
         console.log(`Latency: ${latencyMs}ms`);
@@ -225,6 +228,25 @@ const SidePanel = ({ onClose }) => {
 
     setInputMessage('');
   };
+
+  const handleVideoState = (data) => {
+      if (vcRef.current) {
+        console.log(`Remote player state update from ${data.name} IsPlaying: ${data.isPlaying} CurrentTime: ${data.currentTime}`)
+        if(controller.isLoaded()){
+          if(controller.isPlaying() !== data.isPlaying){
+            console.log(`Remote toggle play/pause to sync with ${data.name}`);
+            controller.togglePlayPause();
+          }
+          if(Math.abs(controller.getCurrentTime() - data.currentTime)){
+            console.log(`Remote seek to sync with ${data.name}`);
+            controller.seek(data.currentTime);
+          }
+        }
+      } else {
+        console.error("Video controller not found!")
+      }
+      
+  }
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -331,14 +353,18 @@ const SidePanel = ({ onClose }) => {
         }}>
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
-              Watch Together 🎬
+              Flickshare 🎬
             </h2>
-            <p style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-              Room: {roomId} • {isConnected ? '🟢 Online' : '🔴 Offline'}
+            <p style={{ margin: '5px 0 0 0', fontSize: '12px', fontWeight: '600', opacity: 0.9 }}>
+              {name} 👨🏻‍💻
             </p>
-            <p style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-              You: {name}
-            </p>
+          <p
+            style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9, cursor: 'pointer', userSelect: 'none' }}
+            onClick={() => navigator.clipboard.writeText(roomId)}
+            title="Click to copy Room ID"
+          >
+            Room: {roomId} • {isConnected ? '🟢 Online' : '🔴 Offline'}
+          </p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {/* Dark Mode Toggle */}
