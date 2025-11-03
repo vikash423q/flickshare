@@ -9,7 +9,7 @@ class RemoteControlBase {
     this.stateCheckInterval = null;
     this.lastDateTime = this.getDateTime();
     this.lastState = null;
-    this.retryInterval = 200;
+    this.retryInterval = 2;
     this.init();
   }
 
@@ -245,7 +245,8 @@ class PrimeVideoControl extends RemoteControlBase {
 class NetflixControl extends RemoteControlBase {
   constructor() {
     super();
-    this.initNetflixPlayer();
+    // this.initNetflixPlayer();
+    this.media = document.getElementsByTagName("video")[0];
   }
 
   initNetflixPlayer(retries = 10) {
@@ -282,7 +283,7 @@ class NetflixControl extends RemoteControlBase {
 
   play() {
     try {
-      this.player.play();
+      this.media.play();
     } catch (err) {
       console.error('Netflix play failed:', err);
     }
@@ -290,7 +291,7 @@ class NetflixControl extends RemoteControlBase {
 
   pause() {
     try {
-      this.player.pause();
+      this.media.pause();
     } catch (err) {
       console.error('Netflix pause failed:', err);
     }
@@ -298,7 +299,26 @@ class NetflixControl extends RemoteControlBase {
 
   seek(seconds) {
     try {
-      this.player.seek(1000 * seconds); // Netflix uses ms
+      // this.player.seek(1000 * seconds); // Netflix uses ms
+        const percent = seconds / this.getDuration();
+        const slider = document.querySelector('[data-uia="timeline-knob"]');
+        if (!slider) return;
+      
+        const rect = slider.getBoundingClientRect();
+        const timeline = slider.parentElement; // Usually the bar container
+        const timelineRect = timeline.getBoundingClientRect();
+      
+        const targetX = timelineRect.left + (timelineRect.width * percent);
+      
+        // Mouse down at current position
+        timeline.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: rect.x }));
+        
+        // Mouse move to target
+        timeline.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: targetX }));
+      
+        // Mouse up to release
+        timeline.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: targetX }));
+      
     } catch (err) {
       console.error('Netflix seek failed:', err);
     }
@@ -324,7 +344,7 @@ class NetflixControl extends RemoteControlBase {
 /** Supported site map **/
 export const supportedSites = {
   'youtube.com': YouTubeControl,
-  // 'netflix.com': NetflixControl,
+  'netflix.com': NetflixControl,
   'primevideo.com': PrimeVideoControl,
 };
 
