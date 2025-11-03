@@ -35,6 +35,11 @@ const createContainer = () => {
 
 // Initialize side panel
 const initPanel = () => {
+  const exist = document.querySelector('#flickcall-sidepanel-root');
+  if (exist) {
+    isActive = true;
+    return;
+  }
   if (root) return;
 
   const panelContainer = createContainer();
@@ -46,8 +51,6 @@ const initPanel = () => {
       <SidePanel onClose={closePanel} />
     </React.StrictMode>
   );
-
-  isActive = true;
 };
 
 // Close side panel
@@ -72,6 +75,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       initPanel();
     }
     sendResponse({ isActive });
+    return true;
+  }
+
+  if (message.action === 'openPanel') {
+    initPanel();
+    sendResponse({ isActive: true });
+    return true;
+  }
+
+  if (message.action === 'closePanel') {
+    closePanel();
+    sendResponse({ isActive: false });
     return true;
   }
 

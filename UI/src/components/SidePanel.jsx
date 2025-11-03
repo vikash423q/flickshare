@@ -328,10 +328,10 @@ const SidePanel = ({ onClose }) => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = '0.5';
+          e.currentTarget.style.opacity = '0.75';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = '0.15';
+          e.currentTarget.style.opacity = '0.50';
         }}
         style={{
           position: 'fixed',
@@ -353,7 +353,7 @@ const SidePanel = ({ onClose }) => {
           boxShadow: 'none',
           transition: 'right 0.3s ease, opacity 0.2s ease',
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          opacity: '0.25',
+          opacity: '0.5',
           backdropFilter: 'blur(4px)'
         }}
       >
@@ -553,7 +553,7 @@ const SidePanel = ({ onClose }) => {
                     <input
                       type="text"
                       value={roomId}
-                      disabled
+                      onChange={(e)=>setRoomId(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '8px',

@@ -41,7 +41,7 @@ function SetupPage(props) {
             <IconButton onClick={() => props.setViewName('start')}><ArrowBackIcon sx={{color: "white"}}/></IconButton>
         </div>
 
-        <div className="setup-container">
+        <div className="setup-container container">
 
             <h2 className="setup-heading">Setup FlickShare</h2>
 

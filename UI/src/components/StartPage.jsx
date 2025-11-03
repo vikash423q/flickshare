@@ -110,7 +110,7 @@ const StartPage = (props) => {
             chrome.storage.local.set({ roomId }, () => {
                 // Switch to the side panel view
                 // Wait for DOM to be ready
-                togglePanel();
+                openPanel();
             });
 
          }
@@ -124,6 +124,10 @@ const StartPage = (props) => {
     }
 
     const joinParty = async (roomId) => {
+        if(!roomId) return;
+
+        if(isPanelActive) await closePanel();
+
         console.log("Joining party...");
         // Logic to start the party
         wsRef.current = new WebSocket(toWebSocketURL(backendUrl));
@@ -143,7 +147,7 @@ const StartPage = (props) => {
                 chrome.storage.local.set({ roomId }, () => {
                     // Switch to the side panel view
                     // Wait for DOM to be ready
-                    togglePanel();
+                    openPanel();
                 });
             } else {
                 console.log("Cannot join empty room!")
@@ -152,7 +156,7 @@ const StartPage = (props) => {
     }
 
     const leaveParty = async () => {
-        console.log("Leaving party...");
+        console.log("Leaving party... Panel Active", isPanelActive);
         // Logic to start the party
         if (wsRef.current){
             wsRef.current.send(JSON.stringify({
@@ -161,13 +165,17 @@ const StartPage = (props) => {
                     token
             }));
         };
-        chrome.storage.local.remove(['roomId']).then(()=>setCurrentRoom(""));
+        chrome.storage.local.remove(['roomId']).then(()=>{
+            setIsLoading(true);
+            setCurrentRoom("");
+            closePanel();
+        });
     }
 
     const [loading, setIsLoading] = useState(false);
     const [isPanelActive, setIsPanelActive] = useState(false);
 
-    const togglePanel = async () => {
+    const callPanelAction = async (action) => {
         if (!currentTab) return;
 
         setIsLoading(true);
@@ -185,7 +193,7 @@ const StartPage = (props) => {
             // Send message to toggle panel
             chrome.tabs.sendMessage(
                 currentTab.id,
-                { action: 'togglePanel' },
+                { action: action },
                 (response) => {
                 if (chrome.runtime.lastError) {
                     console.error('Error:', chrome.runtime.lastError);
@@ -201,20 +209,33 @@ const StartPage = (props) => {
         }
     };
 
+    const openPanel = () => callPanelAction('openPanel');
+    const closePanel = () => callPanelAction('closePanel');
+
     const userLogout = () => {
         chrome.storage.local.remove(['userId', 'token', 'roomId'], () => {
             props.setViewName('setup');
+            closePanel();
         });
     }
 
     return (
-        <div>
+        <div className="container">
         <div className="user-info"> 
-            {userId && (admin ? <AdminPanelSettingsIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> : <AccountCircleIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> )}
-            {userId && <IconButton onClick={userLogout}><Logout sx={{color: "white", verticalAlign: "middle", marginRight: "8px"}}/></IconButton> }
+            {userId && (admin ? <AdminPanelSettingsIcon titleAccess="Admin" sx={{verticalAlign: "middle", marginRight: "8px"}}/> : <AccountCircleIcon titleAccess="User" sx={{verticalAlign: "middle", marginRight: "8px"}}/> )}
+            {userId && <IconButton title="Logout" onClick={userLogout}><Logout sx={{color: "white", verticalAlign: "middle", marginRight: "8px"}}/></IconButton> }
         </div>
         {userId ? 
-        ( currentRoom ? <div><Button variant="contained" size="medium" color="warning" onClick={leaveParty}>Leave Party</Button></div> : <div>
+        ( currentRoom ? 
+        <div>
+            <div style={{ marginBottom: '10px' }}>
+                    <p style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
+                      Room ID : {currentRoom}
+                    </p>
+            </div>
+            <Button variant="contained" size="medium" color="warning" onClick={leaveParty}>Leave Party</Button>
+        </div> : 
+        <div>
             <Button variant="contained" size="medium" color="warning" onClick={startParty}>Start New Party</Button>
             <div style={{ marginTop: '20px', marginBottom: '10px' }}>
                     <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
