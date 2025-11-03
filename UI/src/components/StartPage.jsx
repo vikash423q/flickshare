@@ -13,12 +13,13 @@ const StartPage = (props) => {
     const [userInfo, setUserInfo] = useState({});
     const [admin, setAdmin] = useState(false);
     const [currentTab, setCurrentTab] = useState(null);
+    const [currentRoom, setCurrentRoom] = useState("");
     const [roomToJoin, setRoomToJoin] = useState("");
 
     const wsRef = useRef(null);
 
     const setDataFromStorage = () => {
-        chrome.storage.local.get(['userId', 'token', 'backendUrl', 'name'], (result) => {
+        chrome.storage.local.get(['userId', 'token', 'backendUrl', 'name', 'roomId'], (result) => {
             if (result.userId) {
                 setUserId(result.userId);
             }
@@ -53,6 +54,19 @@ const StartPage = (props) => {
                 setUserId(null);
             });
     }
+
+    useEffect(() => {
+        const updateRoom = async () => {
+            const { roomId } = await chrome.storage.local.get(['roomId']);
+            setCurrentRoom(roomId || "");
+        };
+
+        updateRoom();
+
+        const intervalId = setInterval(updateRoom, 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
 
     useEffect(() => {
         // fetch user ID from local storage
@@ -137,6 +151,19 @@ const StartPage = (props) => {
         };
     }
 
+    const leaveParty = async () => {
+        console.log("Leaving party...");
+        // Logic to start the party
+        if (wsRef.current){
+            wsRef.current.send(JSON.stringify({
+                    type: 'leave',
+                    roomId,
+                    token
+            }));
+        };
+        chrome.storage.local.remove(['roomId']).then(()=>setCurrentRoom(""));
+    }
+
     const [loading, setIsLoading] = useState(false);
     const [isPanelActive, setIsPanelActive] = useState(false);
 
@@ -175,7 +202,7 @@ const StartPage = (props) => {
     };
 
     const userLogout = () => {
-        chrome.storage.local.remove(['userId', 'token'], () => {
+        chrome.storage.local.remove(['userId', 'token', 'roomId'], () => {
             props.setViewName('setup');
         });
     }
@@ -187,7 +214,7 @@ const StartPage = (props) => {
             {userId && <IconButton onClick={userLogout}><Logout sx={{color: "white", verticalAlign: "middle", marginRight: "8px"}}/></IconButton> }
         </div>
         {userId ? 
-        <div>
+        ( roomId ? <div><Button variant="contained" size="medium" color="warning" onClick={leaveParty}>Leave Party</Button></div> : <div>
             <Button variant="contained" size="medium" color="warning" onClick={startParty}>Start New Party</Button>
             <div style={{ marginTop: '20px', marginBottom: '10px' }}>
                     <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
@@ -207,7 +234,7 @@ const StartPage = (props) => {
                     />
             </div>
             <Button variant="contained" size="small" color="warning" onClick={() => joinParty(roomToJoin)}>Join Party</Button>
-        </div> :
+        </div> ):
         <Button variant="contained" size="medium" color="warning" onClick={()=>props.setViewName('setup')}>Setup FlickShare</Button>
         }
         </div>

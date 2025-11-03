@@ -9,7 +9,7 @@ class RemoteControlBase {
     this.stateCheckInterval = null;
     this.lastDateTime = this.getDateTime();
     this.lastState = null;
-    this.retryInterval = 2;
+    this.retryInterval = 200;
     this.init();
   }
 

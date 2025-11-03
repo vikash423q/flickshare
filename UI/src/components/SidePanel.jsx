@@ -289,6 +289,7 @@ const SidePanel = ({ onClose }) => {
   const handleClose = () => {
     setIsOpen(false);
     disconnectWebSocket();
+    chrome.storage.local.remove(['roomId']);
     setTimeout(() => {
       onClose();
     }, 300);
@@ -296,13 +297,15 @@ const SidePanel = ({ onClose }) => {
 
   useEffect(() => {
       const video = document.querySelector('video');
-      const aspect = video.clientHeight / video.clientWidth;
-      if (isOpen) {
-        video.style.width = (video.clientWidth - 240) + 'px';
-        video.style.height = (video.clientWidth) * aspect + 'px'; 
-      } else {
-        video.style.width = (video.clientWidth + 240) + 'px';
-        video.style.height = (video.clientWidth) * aspect + 'px'; 
+      if (video) {
+        const aspect = video.clientHeight / video.clientWidth;
+        if (isOpen) {
+          video.style.width = (video.clientWidth - 240) + 'px';
+          video.style.height = (video.clientWidth) * aspect + 'px'; 
+        } else {
+          video.style.width = (video.clientWidth + 240) + 'px';
+          video.style.height = (video.clientWidth) * aspect + 'px'; 
+        }
       }
  
     }, [isOpen]);
@@ -310,6 +313,14 @@ const SidePanel = ({ onClose }) => {
   useEffect(() => {
 
   }, [isConnected]);
+
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
 
   return (
     <div style={{ pointerEvents: 'all' }}>
@@ -382,16 +393,33 @@ const SidePanel = ({ onClose }) => {
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
               Flickshare 🎬
             </h2>
+
             <p style={{ margin: '5px 0 0 0', fontSize: '12px', fontWeight: '600', opacity: 0.9 }}>
-              {name} 👨🏻‍💻
+              {name} • {isConnected ? '🟢  Online' : '🔴  Offline'}
             </p>
-          <p
-            style={{ margin: '5px 0 0 0', fontSize: '12px', opacity: 0.9, cursor: 'pointer', userSelect: 'none' }}
-            onClick={() => navigator.clipboard.writeText(roomId)}
-            title="Click to copy Room ID"
-          >
-            Room: {roomId} • {isConnected ? '🟢 Online' : '🔴 Offline'}
-          </p>
+            
+            <button
+              onClick={handleCopy}
+              title="Click to copy Room ID"
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            >
+              <p
+                style={{
+                  margin: '5px 0 0 0',
+                  fontSize: '12px',
+                  opacity: 0.9,
+                  userSelect: 'none',
+                }}
+              >
+                {copied ? 'Copied! ✅' : `Room: ${roomId} 📋`}
+              </p>
+            </button>
+         
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {/* Dark Mode Toggle */}
@@ -551,7 +579,7 @@ const SidePanel = ({ onClose }) => {
                       cursor: 'pointer'
                     }}
                   >
-                    Connect to Room
+                    Reconnect to Room
                   </button>
                 </div>
               )}
@@ -611,7 +639,11 @@ const SidePanel = ({ onClose }) => {
                           {msg.name}
                         </div>
                       )}
-                      <div>{msg.content}</div>
+                      <div style={{color: msg.type === 'system' 
+                          ? theme.systemText
+                          : msg.user === userId 
+                            ? 'white' 
+                            : theme.text}}>{msg.content}</div>
                       {msg.type === 'message' && (
                         <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
                           {new Date(msg.timestamp).toLocaleTimeString('en-US', { 
@@ -675,7 +707,7 @@ const SidePanel = ({ onClose }) => {
             // Sync Tab
             <div style={{ padding: '20px' }}>
               <h3 style={{ fontSize: '16px', marginBottom: '15px', color: theme.text }}>
-                Video Synchronization
+                Video Call
               </h3>
               <div style={{
                 padding: '15px',
@@ -686,7 +718,7 @@ const SidePanel = ({ onClose }) => {
                 marginBottom: '15px'
               }}>
                 <strong>🚧 Coming Soon</strong><br/>
-                Video sync feature will allow everyone in the room to watch at the same time.
+                Video call feature will allow everyone in the room to watch at the same time.
               </div>
               <button
                 style={{

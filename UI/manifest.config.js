@@ -20,11 +20,7 @@ export default defineManifest({
         "tabs"
       ],
       "host_permissions": [
-        "*://*.youtube.com/*",
-        "*://*.primevideo.com/*",
-        "*://*.netflix.com/*",
-        "*://*.hotstar.com/*",
-        "*://*.apple.com/*",
+        "<all_urls>"
       ],
       "content_scripts": [
         {
