@@ -266,7 +266,7 @@ const SidePanel = ({ onClose }) => {
         }
         if (updated){
           setCoolDown(true);
-          setTimeout(()=>setCoolDown(false), 500);
+          setTimeout(()=>setCoolDown(false), 2000);
           addSystemMessage(systemMsg);
         }
       } else {
