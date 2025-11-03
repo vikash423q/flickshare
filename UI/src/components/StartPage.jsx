@@ -214,7 +214,7 @@ const StartPage = (props) => {
             {userId && <IconButton onClick={userLogout}><Logout sx={{color: "white", verticalAlign: "middle", marginRight: "8px"}}/></IconButton> }
         </div>
         {userId ? 
-        ( roomId ? <div><Button variant="contained" size="medium" color="warning" onClick={leaveParty}>Leave Party</Button></div> : <div>
+        ( currentRoom ? <div><Button variant="contained" size="medium" color="warning" onClick={leaveParty}>Leave Party</Button></div> : <div>
             <Button variant="contained" size="medium" color="warning" onClick={startParty}>Start New Party</Button>
             <div style={{ marginTop: '20px', marginBottom: '10px' }}>
                     <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
