@@ -245,7 +245,7 @@ const SidePanel = ({ onClose }) => {
             controller.togglePlayPause();
             updated = true;
           }
-          if(Math.abs(controller.getCurrentTime() - data.currentTime)){
+          if(Math.abs(controller.getCurrentTime() - data.currentTime) > 1){
             console.log(`Remote seek to sync with ${data.name}`);
             controller.seek(data.currentTime);
             updated = true;
