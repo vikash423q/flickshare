@@ -22,13 +22,16 @@ export default defineManifest({
       "host_permissions": [
         "*://*.youtube.com/*",
         "*://*.primevideo.com/*",
-        "*://*.netflix.com/*"
+        "*://*.netflix.com/*",
+        "*://*.hotstar.com/*",
+        "*://*.apple.com/*",
       ],
       "content_scripts": [
         {
           "resources": ["assets/*"],
-          "js": ["src/content/index.jsx"],
-          "matches": ["<all_urls>"]
+          "js": ["src/content/index.jsx", "src/content/video.js"],
+          "matches": ["<all_urls>"],
+          "world": "MAIN"
         }
       ]
 })

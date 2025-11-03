@@ -1,7 +1,9 @@
-import { useState, useEffect, StrictMode } from "react";
+import { useState, useEffect, useRef } from "react";
 import Button from '@mui/material/Button';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import Logout from '@mui/icons-material/Logout';
+import IconButton from '@mui/material/IconButton';
 
 
 const StartPage = (props) => {
@@ -11,6 +13,9 @@ const StartPage = (props) => {
     const [userInfo, setUserInfo] = useState({});
     const [admin, setAdmin] = useState(false);
     const [currentTab, setCurrentTab] = useState(null);
+    const [roomToJoin, setRoomToJoin] = useState("");
+
+    const wsRef = useRef(null);
 
     const setDataFromStorage = () => {
         chrome.storage.local.get(['userId', 'token', 'backendUrl', 'name'], (result) => {
@@ -73,7 +78,7 @@ const StartPage = (props) => {
         }
     }, [userInfo]);
 
-    const handleStartParty = async () => {
+    const startParty = async () => {
         console.log("Starting party...");
         // Logic to start the party
         const res = await fetch(`${backendUrl}/api/rooms`, {
@@ -98,6 +103,38 @@ const StartPage = (props) => {
         else {
             console.error("Failed to start party: " + data.message);
         }
+    }
+
+    const toWebSocketURL = (url) => {
+        return url.replace(/^http(s?):\/\//, 'ws$1://');
+    }
+
+    const joinParty = async (roomId) => {
+        console.log("Joining party...");
+        // Logic to start the party
+        wsRef.current = new WebSocket(toWebSocketURL(backendUrl));
+
+        wsRef.current.onopen = () => {
+            wsRef.current.send(JSON.stringify({
+                type: 'join',
+                roomId,
+                token
+            }));
+        };
+
+        wsRef.current.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if(data.type === 'joined' && data.roomId === roomId && data.userId === userId){
+                console.log("Party joined successfully:", data);
+                chrome.storage.local.set({ roomId }, () => {
+                    // Switch to the side panel view
+                    // Wait for DOM to be ready
+                    togglePanel();
+                });
+            } else {
+                console.log("Cannot join empty room!")
+            }
+        };
     }
 
     const [loading, setIsLoading] = useState(false);
@@ -137,13 +174,40 @@ const StartPage = (props) => {
         }
     };
 
+    const userLogout = () => {
+        chrome.storage.local.remove(['userId', 'token'], () => {
+            props.setViewName('setup');
+        });
+    }
+
     return (
         <div>
         <div className="user-info"> 
             {userId && (admin ? <AdminPanelSettingsIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> : <AccountCircleIcon sx={{verticalAlign: "middle", marginRight: "8px"}}/> )}
+            {userId && <IconButton onClick={userLogout}><Logout sx={{color: "white", verticalAlign: "middle", marginRight: "8px"}}/></IconButton> }
         </div>
         {userId ? 
-        <Button variant="contained" size="medium" color="warning" onClick={handleStartParty}>Start FlickShare</Button> :
+        <div>
+            <Button variant="contained" size="medium" color="warning" onClick={startParty}>Start New Party</Button>
+            <div style={{ marginTop: '20px', marginBottom: '10px' }}>
+                    <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
+                      Room ID
+                    </label>
+                    <input
+                      type="text"
+                      value={roomToJoin}
+                      onChange={(e)=>setRoomToJoin(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px'
+                      }}
+                    />
+            </div>
+            <Button variant="contained" size="small" color="warning" onClick={() => joinParty(roomToJoin)}>Join Party</Button>
+        </div> :
         <Button variant="contained" size="medium" color="warning" onClick={()=>props.setViewName('setup')}>Setup FlickShare</Button>
         }
         </div>

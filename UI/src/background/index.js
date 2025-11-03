@@ -18,9 +18,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.error('Error injecting content script:', error);
       sendResponse({ success: false, error: error.message });
     });
-    
+  
     return true; // Keep message channel open for async response
   }
+
+    if (message.type === "injectNetflixScript") {
+        console.log('executing netflix script');
+        chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id },
+          files: ["assets/netflix.js.js"],
+        }).then(()=>{
+          console.log('netflix script injected succesfully');
+          sendResponse({ success: true });
+        }).catch(error => {
+            console.error('Error injecting content script:', error);
+            sendResponse({ success: false, error: error.message });
+        })
+        
+        return true;
+    }
   
   // Forward other messages to content script
   if (message.action === 'forwardToContent') {
