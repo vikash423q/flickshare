@@ -239,7 +239,7 @@ const SidePanel = ({ onClose }) => {
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
   
-    return [hrs, mins, secs]
+    return (hrs ? [hrs, mins, secs] : [mins, secs])
       .map(v => String(v).padStart(2, '0'))
       .join(':');
   }

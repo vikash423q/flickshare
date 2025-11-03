@@ -221,6 +221,7 @@ class YouTubeControl extends RemoteControlBase {
 class PrimeVideoControl extends RemoteControlBase {
   constructor() {
     super();
+    this.promise = null;
     this.observePlayer();
   }
 
@@ -239,6 +240,31 @@ class PrimeVideoControl extends RemoteControlBase {
     updatePlayer();
     const observer = new MutationObserver(updatePlayer);
     observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  async play() {
+    try {
+      this.promise = new Promise((resolve, reject) => {
+        super.play()
+          .then(() => resolve())
+          .catch(err => reject(err));
+      });
+
+      await this.promise;
+      return true; // optional, indicates success
+    } catch (error) {
+      console.error("Error while playing:", error);
+      return false;
+    } finally {
+      this.promise = null;
+    }
+  }
+
+  async pause() {
+    if(this.promise){
+      await this.promise;
+    }
+    super.pause();
   }
 }
 
