@@ -231,6 +231,7 @@ const SidePanel = ({ onClose }) => {
 
   const handleVideoState = (data) => {
       if (vcRef.current) {
+        let controller = vcRef.current;
         console.log(`Remote player state update from ${data.name} IsPlaying: ${data.isPlaying} CurrentTime: ${data.currentTime}`)
         if(controller.isLoaded()){
           if(controller.isPlaying() !== data.isPlaying){
