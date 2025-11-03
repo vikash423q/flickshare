@@ -234,26 +234,40 @@ const SidePanel = ({ onClose }) => {
     setInputMessage('');
   };
 
+  const humanReadable = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+  
+    return [hrs, mins, secs]
+      .map(v => String(v).padStart(2, '0'))
+      .join(':');
+  }
+
   const handleVideoState = (data) => {
       if (vcRef.current) {
         let controller = vcRef.current;
         let updated = false;
+        let systemMsg = data.name;
         console.log(`Remote player state update from ${data.name} IsPlaying: ${data.isPlaying} CurrentTime: ${data.currentTime}`)
         if(controller.isLoaded()){
           if(controller.isPlaying() !== data.isPlaying){
             console.log(`Remote toggle play/pause to sync with ${data.name}`);
             controller.togglePlayPause();
             updated = true;
+            systemMsg += data.isPlaying ? ' played video' : ' paused video';
           }
           if(Math.abs(controller.getCurrentTime() - data.currentTime) > 1){
             console.log(`Remote seek to sync with ${data.name}`);
             controller.seek(data.currentTime);
+            systemMsg += !updated ? ` moved to ${humanReadable(data.currentTime)}` : ` at ${humanReadable(data.currentTime)}`
             updated = true;
           }
         }
         if (updated){
           setCoolDown(true);
           setTimeout(()=>setCoolDown(false), 500);
+          addSystemMessage(systemMsg);
         }
       } else {
         console.error("Video controller not found!")
