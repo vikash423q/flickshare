@@ -101,7 +101,10 @@ const SidePanel = ({ onClose }) => {
       vcRef.current = getVideoController();
     
       const unsubscribe = vcRef.current.subscribe((state) => {
-        if (coolDown) return;
+        if (coolDown) {
+          console.log('blocking event due to cooldown');
+          return;
+        }
         // Send to WebSocket
         wsRef.current.send(JSON.stringify({
           actionType: 'media',
@@ -250,7 +253,7 @@ const SidePanel = ({ onClose }) => {
         }
         if (updated){
           setCoolDown(true);
-          setTimeout(()=>setCoolDown(False), 500);
+          setTimeout(()=>setCoolDown(false), 500);
         }
       } else {
         console.error("Video controller not found!")
