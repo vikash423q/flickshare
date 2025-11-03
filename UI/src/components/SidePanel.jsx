@@ -25,6 +25,7 @@ const SidePanel = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'sync'
   const pingIntervalRef = useRef(null);
   const [isDarkMode, setIsDarkMode] = useState(true); // Default dark mode
+  const [coolDown, setCoolDown] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('sidepanel_darkmode', isDarkMode);
@@ -100,6 +101,7 @@ const SidePanel = ({ onClose }) => {
       vcRef.current = getVideoController();
     
       const unsubscribe = vcRef.current.subscribe((state) => {
+        if (coolDown) return;
         // Send to WebSocket
         wsRef.current.send(JSON.stringify({
           actionType: 'media',
@@ -232,16 +234,23 @@ const SidePanel = ({ onClose }) => {
   const handleVideoState = (data) => {
       if (vcRef.current) {
         let controller = vcRef.current;
+        let updated = false;
         console.log(`Remote player state update from ${data.name} IsPlaying: ${data.isPlaying} CurrentTime: ${data.currentTime}`)
         if(controller.isLoaded()){
           if(controller.isPlaying() !== data.isPlaying){
             console.log(`Remote toggle play/pause to sync with ${data.name}`);
             controller.togglePlayPause();
+            updated = true;
           }
           if(Math.abs(controller.getCurrentTime() - data.currentTime)){
             console.log(`Remote seek to sync with ${data.name}`);
             controller.seek(data.currentTime);
+            updated = true;
           }
+        }
+        if (updated){
+          setCoolDown(true);
+          setTimeout(()=>setCoolDown(False), 500);
         }
       } else {
         console.error("Video controller not found!")
