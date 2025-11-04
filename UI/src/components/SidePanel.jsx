@@ -45,6 +45,8 @@ const SidePanel = ({ onClose }) => {
     systemText: isDarkMode ? '#fbbf24' : '#92400e',
     inputBg: isDarkMode ? '#2d2d2d' : 'white',
     inputBorder: isDarkMode ? '#404040' : '#d1d5db',
+    gradientStart: isDarkMode ? '#db6c33' : '#ff752e',
+    gradientEnd: isDarkMode ? '#5a3a32' : '#d4846f',
   };
   
   const wsRef = useRef(null);
@@ -287,6 +289,7 @@ const SidePanel = ({ onClose }) => {
   }, [messages]);
 
   const handleClose = () => {
+    setShowEmojiPicker(false);
     setIsOpen(false);
     disconnectWebSocket();
     chrome.storage.local.remove(['roomId']);
@@ -315,6 +318,7 @@ const SidePanel = ({ onClose }) => {
   }, [isConnected]);
 
   const [copied, setCopied] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(roomId);
@@ -328,10 +332,10 @@ const SidePanel = ({ onClose }) => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = '0.75';
+          e.currentTarget.style.opacity = '0.80';
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = '0.50';
+          e.currentTarget.style.opacity = '0.65';
         }}
         style={{
           position: 'fixed',
@@ -349,11 +353,11 @@ const SidePanel = ({ onClose }) => {
           alignItems: 'center',
           justifyContent: 'center',
           color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: '14px',
+          fontSize: '16px',
           boxShadow: 'none',
           transition: 'right 0.3s ease, opacity 0.2s ease',
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          opacity: '0.5',
+          opacity: '0.8',
           backdropFilter: 'blur(4px)'
         }}
       >
@@ -382,13 +386,15 @@ const SidePanel = ({ onClose }) => {
       >
         {/* Header */}
         <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: `linear-gradient(135deg, ${theme.gradientStart} 0%, ${theme.gradientEnd} 100%)`,
           color: 'white',
           padding: '20px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start'
-        }}>
+        }}
+
+        >
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
               Flickshare 🎬
@@ -411,9 +417,10 @@ const SidePanel = ({ onClose }) => {
               <p
                 style={{
                   margin: '5px 0 0 0',
-                  fontSize: '12px',
+                  fontSize: '13px',
                   opacity: 0.9,
                   userSelect: 'none',
+                  color: 'white',
                 }}
               >
                 {copied ? 'Copied! ✅' : `Room: ${roomId} 📋`}
@@ -477,11 +484,11 @@ const SidePanel = ({ onClose }) => {
               padding: '12px',
               border: 'none',
               background: activeTab === 'chat' ? theme.bg : 'transparent',
-              borderBottom: activeTab === 'chat' ? '2px solid #667eea' : '2px solid transparent',
+              borderBottom: activeTab === 'chat' ? '2px solid #C17541' : '2px solid transparent',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: '12px',
               fontWeight: '500',
-              color: activeTab === 'chat' ? '#667eea' : theme.textSecondary,
+              color: activeTab === 'chat' ? '#C17541' : theme.textSecondary,
               transition: 'all 0.2s'
             }}
           >
@@ -494,11 +501,11 @@ const SidePanel = ({ onClose }) => {
               padding: '12px',
               border: 'none',
               background: activeTab === 'sync' ? theme.bg : 'transparent',
-              borderBottom: activeTab === 'sync' ? '2px solid #667eea' : '2px solid transparent',
+              borderBottom: activeTab === 'sync' ? '2px solid #C17541' : '2px solid transparent',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: '12px',
               fontWeight: '500',
-              color: activeTab === 'sync' ? '#667eea' : theme.textSecondary,
+              color: activeTab === 'sync' ? '#C17541' : theme.textSecondary,
               transition: 'all 0.2s'
             }}
           >
@@ -606,7 +613,7 @@ const SidePanel = ({ onClose }) => {
                       key={msg.id}
                       style={{
                         marginBottom: '12px',
-                        padding: msg.type === 'system' ? '8px 12px' : '10px 14px',
+                        padding: msg.type === 'system' ? '6px 8px' : '8px 12px',
                         background: msg.type === 'system' 
                           ? theme.systemBg
                           : msg.user === userId 
@@ -625,13 +632,13 @@ const SidePanel = ({ onClose }) => {
                             ? '0 1px 3px rgba(0,0,0,0.3)' 
                             : '0 1px 3px rgba(0,0,0,0.1)',
                         fontStyle: msg.type === 'system' ? 'italic' : 'normal',
-                        marginLeft: msg.user === userId ? '40px' : '0',
-                        marginRight: msg.user === userId ? '0' : '40px'
+                        marginLeft: msg.user === userId ? '32px' : '0',
+                        marginRight: msg.user === userId ? '0' : '32px'
                       }}
                     >
                       {msg.type === 'message' && msg.user !== userId && (
                         <div style={{ 
-                          fontSize: '12px', 
+                          fontSize: '11px', 
                           fontWeight: '600', 
                           marginBottom: '4px', 
                           opacity: 0.8 
@@ -645,7 +652,7 @@ const SidePanel = ({ onClose }) => {
                             ? 'white' 
                             : theme.text}}>{msg.content}</div>
                       {msg.type === 'message' && (
-                        <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                        <div style={{ fontSize: '9px', marginTop: '4px', opacity: 0.7 }}>
                           {new Date(msg.timestamp).toLocaleTimeString('en-US', { 
                             hour: '2-digit', 
                             minute: '2-digit' 
@@ -663,9 +670,69 @@ const SidePanel = ({ onClose }) => {
                 <div style={{
                   padding: '15px',
                   borderTop: `1px solid ${theme.border}`,
-                  background: theme.bg
+                  background: theme.bg,
+                  position: 'relative'
                 }}>
+                  {showEmojiPicker && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '70px',
+                      left: '10px',
+                      background: theme.bg,
+                      border: `1px solid ${theme.border}`,
+                      borderRadius: '12px',
+                      padding: '12px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      maxHeight: '250px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      width: '220px'
+                    }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(5, 1fr)',
+                        gap: '8px'
+                      }}>
+                        {['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','💋','🩸'].map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={() => {
+                              setInputMessage(prev => prev + emoji);
+                              setShowEmojiPicker(false);
+                            }}
+                            style={{
+                              fontSize: '20px',
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '4px',
+                              borderRadius: '4px',
+                              transition: 'background 0.2s'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = theme.hover}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      style={{
+                        padding: '8px 12px',
+                        background: theme.inputBg,
+                        color: theme.text,
+                        border: `1px solid ${theme.inputBorder}`,
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '18px'
+                      }}
+                    >
+                      😊
+                    </button>
                     <input
                       type="text"
                       value={inputMessage}
@@ -674,7 +741,7 @@ const SidePanel = ({ onClose }) => {
                       placeholder="Type a message..."
                       style={{
                         flex: 1,
-                        padding: '10px 14px',
+                        padding: '8px 12px',
                         border: `1px solid ${theme.inputBorder}`,
                         borderRadius: '8px',
                         fontSize: '14px',
@@ -683,22 +750,6 @@ const SidePanel = ({ onClose }) => {
                         color: theme.text
                       }}
                     />
-                    <button
-                      onClick={sendMessage}
-                      disabled={!inputMessage.trim()}
-                      style={{
-                        padding: '10px 20px',
-                        background: inputMessage.trim() ? '#667eea' : theme.inputBorder,
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: inputMessage.trim() ? 'pointer' : 'not-allowed',
-                        fontSize: '14px',
-                        fontWeight: '500'
-                      }}
-                    >
-                      Send
-                    </button>
                   </div>
                 </div>
               )}

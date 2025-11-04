@@ -176,7 +176,7 @@ const StartPage = (props) => {
     const [isPanelActive, setIsPanelActive] = useState(false);
 
     const callPanelAction = async (action) => {
-        if (!currentTab) return;
+        if (!currentTab) return false;
 
         setIsLoading(true);
 
@@ -191,7 +191,7 @@ const StartPage = (props) => {
             await new Promise(resolve => setTimeout(resolve, 100));
 
             // Send message to toggle panel
-            chrome.tabs.sendMessage(
+            await chrome.tabs.sendMessage(
                 currentTab.id,
                 { action: action },
                 (response) => {
@@ -209,7 +209,11 @@ const StartPage = (props) => {
         }
     };
 
-    const openPanel = () => callPanelAction('openPanel');
+    const openPanel = () => {
+        callPanelAction('openPanel').then(()=>{
+            window.close();
+        });
+    }
     const closePanel = () => callPanelAction('closePanel');
 
     const userLogout = () => {
