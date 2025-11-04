@@ -25,6 +25,7 @@ const SidePanel = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('chat'); // 'chat' or 'sync'
   const pingIntervalRef = useRef(null);
   const [isDarkMode, setIsDarkMode] = useState(true); // Default dark mode
+  const [roomIdValue, setRoomIdValue] = useState("");
   const [coolDown, setCoolDown] = useState(false);
 
   useEffect(() => {
@@ -89,7 +90,8 @@ const SidePanel = ({ onClose }) => {
     if (roomId) {
       chrome.storage.local.set({ roomId }, () => {  
         connectWebSocket();
-      })
+        setRoomIdValue(roomId);
+      });
     }
   }, [roomId]);
 
@@ -319,6 +321,11 @@ const SidePanel = ({ onClose }) => {
 
   const [copied, setCopied] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const handleReconnect = () => {
+    setRoomId(roomIdValue);
+    setTimeout(()=>connectWebSocket(), 200);
+  }
 
   const handleCopy = () => {
     navigator.clipboard.writeText(roomId);
@@ -559,8 +566,8 @@ const SidePanel = ({ onClose }) => {
                     </label>
                     <input
                       type="text"
-                      value={roomId}
-                      onChange={(e)=>setRoomId(e.target.value)}
+                      value={roomIdValue}
+                      onChange={(e)=>setRoomIdValue(e.target.value)}
                       style={{
                         width: '100%',
                         padding: '8px',
@@ -573,7 +580,7 @@ const SidePanel = ({ onClose }) => {
                     />
                   </div>
                   <button
-                    onClick={connectWebSocket}
+                    onClick={handleReconnect}
                     style={{
                       width: '100%',
                       padding: '10px',
