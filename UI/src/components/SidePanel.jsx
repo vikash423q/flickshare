@@ -664,7 +664,7 @@ const SidePanel = ({ onClose }) => {
                         marginRight: msg.user === userId ? '0' : '32px'
                       }}
                     >
-                      {msg.type === 'message' && msg.user !== userId && (
+                      {msg.type === 'message' && msg.userId !== userId && (
                         <div style={{ 
                           fontSize: '11px', 
                           fontWeight: '600', 
