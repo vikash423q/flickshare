@@ -66,6 +66,7 @@ const closePanel = () => {
   isActive = false;
 };
 
+
 // Listen for messages from popup/background
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'togglePanel') {

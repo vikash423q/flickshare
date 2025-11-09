@@ -152,21 +152,17 @@ const StartPage = (props) => {
             const data = await res.json();
             if (res.status === 200) { 
                 console.log("Party joined successfully:", data.link);
-                
-                chrome.tabs.onUpdated.addListener(async function listener(tabId, changeInfo) {
-                    if (tabId === currentTab.id && changeInfo.status === 'complete') {
-                        chrome.tabs.onUpdated.removeListener(listener);
-                        
-                        setTimeout(() => {
-                            injectAndOpenPanel(currentTab.id, roomId);
-                        }, 500);
-                    }
-                });
 
-                await chrome.storage.local.set({ roomId });                    
-                chrome.tabs.update(currentTab.id, { url: data.link });
+                await chrome.storage.local.set({ roomId });  
+                // openPanel();
+                await chrome.tabs.update(currentTab.id, { url: data.link });  
+                // 6f94c4da
+   
+                await chrome.runtime.sendMessage({
+                    action: "joinParty",
+                    tabId: currentTab.id
+                  }); 
                 
-                setTimeout(() => window.close(), 200);
             }
         } catch (error) {
             console.error("Error joining party:", error);
@@ -190,16 +186,18 @@ const StartPage = (props) => {
             const data = await res.json();
             if (res.status === 200 && data.link) {
                 // Check if a tab with the party link already exists
-                chrome.tabs.query({}, (tabs) => {
+                chrome.tabs.query({}, async (tabs) => {
                     const existingTab = tabs.find(tab => tab.url && tab.url.includes(data.link));
                     
                     if (existingTab) {
                         // Switch to existing tab
-                        chrome.tabs.update(existingTab.id, { active: true });
-                        chrome.windows.update(existingTab.windowId, { focused: true });
+                        await chrome.tabs.update(existingTab.id, { active: true });
+                        await chrome.windows.update(existingTab.windowId, { focused: true });
+                        openPanel();
                     } else {
                         // Create new tab
                         chrome.tabs.create({ url: data.link, active: true });
+                        openPanel();
                     }
                     
                     window.close();
@@ -212,20 +210,21 @@ const StartPage = (props) => {
 
     const injectAndOpenPanel = async (tabId, roomId) => {
         try {
-            await chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                files: ["assets/index.jsx-loader.js"]
-            });
+            // await chrome.scripting.executeScript({
+            //     target: { tabId: tabId },
+            //     files: ["assets/index.jsx-loader.js"]
+            // });
 
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // await new Promise(resolve => setTimeout(resolve, 500));
 
             await chrome.tabs.sendMessage(
                 tabId,
-                { action: 'openPanel', roomId: roomId },
+                { action: 'injectContentScript', roomId: roomId },
                 (response) => {
                     if (chrome.runtime.lastError) {
                         console.error('Error opening panel:', chrome.runtime.lastError);
                     } else {
+                        openPanel();
                         console.log('Panel opened successfully:', response);
                     }
                 }

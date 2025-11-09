@@ -5,52 +5,40 @@ chrome.runtime.onInstalled.addListener(() => {
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('Background received message:', message);
-  
-  if (message.action === 'injectContentScript') {
-    // Inject content script into specific tab
-    chrome.scripting.executeScript({
-      target: { tabId: message.tabId },
-      files: ["assets/index.jsx-loader.js"]
-    }).then(() => {
-      console.log('Content script injected successfully');
-      sendResponse({ success: true });
-    }).catch((error) => {
-      console.error('Error injecting content script:', error);
-      sendResponse({ success: false, error: error.message });
-    });
-  
-    return true; // Keep message channel open for async response
-  }
-
-    if (message.type === "injectNetflixScript") {
-        console.log('executing netflix script');
-        chrome.scripting.executeScript({
-          target: { tabId: sender.tab.id },
-          files: ["assets/netflix.js.js"],
-        }).then(()=>{
-          console.log('netflix script injected succesfully');
-          sendResponse({ success: true });
-        }).catch(error => {
-            console.error('Error injecting content script:', error);
-            sendResponse({ success: false, error: error.message });
-        })
-        
-        return true;
-    }
-  
-  // Forward other messages to content script
-  if (message.action === 'forwardToContent') {
-    chrome.tabs.sendMessage(message.tabId, message.data, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error forwarding message:', chrome.runtime.lastError);
-        sendResponse({ success: false, error: chrome.runtime.lastError.message });
-      } else {
-        sendResponse(response);
-      }
-    });
+  if (message.action === "joinParty") {
+    console.log("Listening for tab load to join party...");
     
+    const { tabId, roomId } = message;
+    
+    const listener = (updatedTabId, changeInfo, tab) => {
+      if (updatedTabId === tabId && changeInfo.status === "complete") {
+        console.log("Tab finished loading, injecting panel...");
+  
+        chrome.scripting.executeScript({
+          target: { tabId },
+          files: ["assets/index.jsx-loader.js"]
+        }).then(() => {
+          console.log("Loader injected, waiting for contentReady...");
+          
+          const readyListener = (msg) => {
+            if (msg.action === "contentReady") {
+              console.log("Content ready, opening panel...");
+              chrome.tabs.sendMessage(tabId, { action: "openPanel", roomId });
+              chrome.runtime.onMessage.removeListener(readyListener);
+            }
+          };
+          chrome.runtime.onMessage.addListener(readyListener);
+        });
+  
+        chrome.tabs.onUpdated.removeListener(listener);
+      }
+    };
+  
+    chrome.tabs.onUpdated.addListener(listener);
+    sendResponse({ success: true });
     return true;
   }
+  
 });
 
 // Handle tab updates (optional - for persisting state)
