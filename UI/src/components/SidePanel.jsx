@@ -269,7 +269,7 @@ const SidePanel = ({ onClose }) => {
 
   const handleVideoState = (data) => {
       if (vcRef.current) {
-        if (data.userId !== userId) return;
+        if (data.userId === userId) return;
         let controller = vcRef.current;
         let updated = false;
         let systemMsg = data.name;
