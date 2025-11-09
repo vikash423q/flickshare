@@ -4,10 +4,7 @@ import "./App.css";
 
 function App() {
   return (
-    <div>
       <MainPage />
-      <p className="version">FlickShare v1.0.0</p>
-    </div>
   );
 }
 

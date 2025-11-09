@@ -1,11 +1,8 @@
-body {
-  background-image: linear-gradient(to right, black, #5e615f);
-}
+
 
 #root {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 1.6rem;
   text-align: center;
 }
 

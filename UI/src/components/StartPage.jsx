@@ -4,7 +4,11 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import Logout from '@mui/icons-material/Logout';
 import IconButton from '@mui/material/IconButton';
-
+import GroupsIcon from '@mui/icons-material/Groups';
+import AddIcon from '@mui/icons-material/Add';
+import LoginIcon from '@mui/icons-material/Login';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 
 const StartPage = (props) => {
     const [userId, setUserId] = useState(null);
@@ -16,6 +20,8 @@ const StartPage = (props) => {
     const [currentRoom, setCurrentRoom] = useState("");
     const [roomToJoin, setRoomToJoin] = useState("");
     const [name, setName] = useState("");
+    const [loading, setIsLoading] = useState(false);
+    const [isPanelActive, setIsPanelActive] = useState(false);
 
     const wsRef = useRef(null);
 
@@ -40,7 +46,7 @@ const StartPage = (props) => {
     }
 
     const fetchUserInfo = () => {
-        const res = fetch(`${backendUrl}/api/user/info`, {
+        fetch(`${backendUrl}/api/user/info`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -51,6 +57,7 @@ const StartPage = (props) => {
             .then(data => { 
                 setUserInfo(data); 
                 setAdmin(data.admin);
+                setName(data.name);
                 chrome.storage.local.set({ name: data.name });
             })
             .catch(error => {
@@ -66,14 +73,11 @@ const StartPage = (props) => {
         };
 
         updateRoom();
-
         const intervalId = setInterval(updateRoom, 1000);
-
         return () => clearInterval(intervalId);
     }, []);
 
     useEffect(() => {
-        // fetch user ID from local storage
         setDataFromStorage();
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             const tab = tabs[0];
@@ -83,7 +87,6 @@ const StartPage = (props) => {
 
     useEffect(() => {
         if (userId) {
-            // Get user info
             fetchUserInfo();
         }
     }, [userId]);
@@ -98,87 +101,124 @@ const StartPage = (props) => {
 
     const startParty = async () => {
         console.log("Starting party...");
-        // Logic to start the party
-        const res = await fetch(`${backendUrl}/api/rooms`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-                url: currentTab.url, 
-            }),
-        });
+        setIsLoading(true);
+        
+        try {
+            const res = await fetch(`${backendUrl}/api/rooms`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    url: currentTab.url, 
+                }),
+            });
 
-        const data = await res.json();
-        if (res.status === 200) { 
-            console.log("Party started successfully:", data);
-            const roomId = data.roomId;
-            
-            // Store roomId in chrome storage
-            await chrome.storage.local.set({ roomId });
-            openPanel();
-            
-            // Close the popup
-            setTimeout(()=>window.close(), 200);
+            const data = await res.json();
+            if (res.status === 200) { 
+                console.log("Party started successfully:", data);
+                const roomId = data.roomId;
+                
+                await chrome.storage.local.set({ roomId });
+                openPanel();
+                
+                setTimeout(() => window.close(), 200);
+            } else {
+                console.error("Failed to start party: " + data.message);
+            }
+        } catch (error) {
+            console.error("Error starting party:", error);
+        } finally {
+            setIsLoading(false);
         }
-        else {
-            console.error("Failed to start party: " + data.message);
-        }
-    }
-
-    const toWebSocketURL = (url) => {
-        return url.replace(/^http(s?):\/\//, 'ws$1://');
     }
 
     const joinParty = async (roomId) => {
-        if(!roomId) return;
+        if (!roomId) return;
 
         console.log("Joining party...");
+        setIsLoading(true);
 
-        const res = await fetch(`${backendUrl}/api/rooms/${roomId}/info`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${token}`,
-            }
-        });
-
-        const data = await res.json();
-        if (res.status === 200) { 
-            console.log("Party joined successfully:", data.link);
-            
-            chrome.tabs.onUpdated.addListener(async function listener(tabId, changeInfo) {
-                if (tabId === currentTab.id && changeInfo.status === 'complete') {
-                    // Remove listener after first execution
-                    chrome.tabs.onUpdated.removeListener(listener);
-                    
-                    // Wait a bit for the page to fully load
-                    setTimeout(() => {
-                        injectAndOpenPanel(currentTab.id, roomId);
-                    }, 500);
-                        }
+        try {
+            const res = await fetch(`${backendUrl}/api/rooms/${roomId}/info`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                }
             });
 
-            await chrome.storage.local.set({ roomId });                    
-            chrome.tabs.update(currentTab.id, {url: data.link});
+            const data = await res.json();
+            if (res.status === 200) { 
+                console.log("Party joined successfully:", data.link);
+                
+                chrome.tabs.onUpdated.addListener(async function listener(tabId, changeInfo) {
+                    if (tabId === currentTab.id && changeInfo.status === 'complete') {
+                        chrome.tabs.onUpdated.removeListener(listener);
+                        
+                        setTimeout(() => {
+                            injectAndOpenPanel(currentTab.id, roomId);
+                        }, 500);
+                    }
+                });
+
+                await chrome.storage.local.set({ roomId });                    
+                chrome.tabs.update(currentTab.id, { url: data.link });
+                
+                setTimeout(() => window.close(), 200);
+            }
+        } catch (error) {
+            console.error("Error joining party:", error);
+        } finally {
+            setIsLoading(false);
         }
-        
-        
+    }
+
+    const goToActiveParty = async () => {
+        if (!currentRoom) return;
+
+        try {
+            const res = await fetch(`${backendUrl}/api/rooms/${currentRoom}/info`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                }
+            });
+
+            const data = await res.json();
+            if (res.status === 200 && data.link) {
+                // Check if a tab with the party link already exists
+                chrome.tabs.query({}, (tabs) => {
+                    const existingTab = tabs.find(tab => tab.url && tab.url.includes(data.link));
+                    
+                    if (existingTab) {
+                        // Switch to existing tab
+                        chrome.tabs.update(existingTab.id, { active: true });
+                        chrome.windows.update(existingTab.windowId, { focused: true });
+                    } else {
+                        // Create new tab
+                        chrome.tabs.create({ url: data.link, active: true });
+                    }
+                    
+                    window.close();
+                });
+            }
+        } catch (error) {
+            console.error("Error getting party info:", error);
+        }
     }
 
     const injectAndOpenPanel = async (tabId, roomId) => {
         try {
-            // Inject content script
             await chrome.scripting.executeScript({
                 target: { tabId: tabId },
                 files: ["assets/index.jsx-loader.js"]
             });
 
-            // Wait for script to initialize
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Open the panel
             await chrome.tabs.sendMessage(
                 tabId,
                 { action: 'openPanel', roomId: roomId },
@@ -198,7 +238,7 @@ const StartPage = (props) => {
     const leaveParty = async () => {
         console.log("Leaving party...");
         
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN){
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             wsRef.current.send(JSON.stringify({
                 type: 'leave',
                 roomId: currentRoom,
@@ -207,19 +247,15 @@ const StartPage = (props) => {
             wsRef.current.close();
         }
         
-        chrome.storage.local.remove(['roomId']).then(()=>{
+        chrome.storage.local.remove(['roomId']).then(() => {
             setIsLoading(true);
             setCurrentRoom("");
             
-            // Close panel on current tab if it's open
             if (currentTab) {
                 closePanel();
             }
         });
     }
-
-    const [loading, setIsLoading] = useState(false);
-    const [isPanelActive, setIsPanelActive] = useState(false);
 
     const callPanelAction = async (action) => {
         if (!currentTab) return false;
@@ -227,16 +263,13 @@ const StartPage = (props) => {
         setIsLoading(true);
 
         try {
-            // First, inject content script if not already injected
             await chrome.scripting.executeScript({
                 target: { tabId: currentTab.id },
                 files: ["assets/index.jsx-loader.js"]
             });
 
-            // Wait a bit for script to initialize
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            // Send message to toggle panel
             await chrome.tabs.sendMessage(
                 currentTab.id,
                 { action: action },
@@ -256,7 +289,7 @@ const StartPage = (props) => {
     };
 
     const openPanel = () => {
-        callPanelAction('openPanel').then(()=>{
+        callPanelAction('openPanel').then(() => {
             window.close();
         });
     }
@@ -273,53 +306,333 @@ const StartPage = (props) => {
     }
 
     return (
-        <div className="container">
-            <div className="user-info"> 
-                {userId && (admin ? <AdminPanelSettingsIcon titleAccess="Admin" sx={{verticalAlign: "middle", marginRight: "8px"}}/> : <AccountCircleIcon titleAccess="User" sx={{verticalAlign: "middle", marginRight: "8px"}}/> )}
-                {userId && <IconButton title="Logout" onClick={userLogout}><Logout sx={{color: "white", verticalAlign: "middle", marginRight: "8px"}}/></IconButton> }
-            </div>
-            {userId ? 
-                ( currentRoom ? 
-                    <div>
-                        <div style={{ marginBottom: '10px' }}>
-                            <p style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
-                                Room ID : {currentRoom}
-                            </p>
+        <div style={{
+            minHeight: '400px',
+            background: 'linear-gradient(135deg, #db6c33 0%, #5a3a32 100%)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
+            {/* Header with User Info */}
+            {userId && (
+                <div style={{
+                    padding: '16px 20px',
+                    background: 'rgba(0, 0, 0, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+                }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                    }}>
+                        {admin ? (
+                            <AdminPanelSettingsIcon style={{ color: '#fbbf24', fontSize: '24px' }} />
+                        ) : (
+                            <AccountCircleIcon style={{ color: 'white', fontSize: '24px' }} />
+                        )}
+                        <div>
+                            <div style={{
+                                color: 'white',
+                                fontSize: '14px',
+                                fontWeight: '600'
+                            }}>
+                                {name || 'User'}
+                            </div>
+                            <div style={{
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                fontSize: '11px'
+                            }}>
+                                {admin ? 'Administrator' : 'Member'}
+                            </div>
                         </div>
-                        <Button variant="contained" size="medium" color="warning" onClick={leaveParty}>Leave Party</Button>
-                    </div> : 
-                    <div>
-                        <Button variant="contained" size="medium" color="warning" onClick={startParty}>Start New Party</Button>
-                        <div style={{ marginTop: '20px', marginBottom: '10px' }}>
-                            <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '5px' }}>
-                                Room ID
+                    </div>
+                    <IconButton 
+                        onClick={userLogout}
+                        style={{
+                            color: 'white',
+                            background: 'rgba(255, 255, 255, 0.1)'
+                        }}
+                        title="Logout"
+                    >
+                        <Logout />
+                    </IconButton>
+                </div>
+            )}
+
+            {/* Main Content */}
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '30px 24px'
+            }}>
+                {!userId ? (
+                    // Not logged in state
+                    <div style={{ textAlign: 'center' }}>
+                        <GroupsIcon style={{
+                            fontSize: '64px',
+                            color: 'white',
+                            marginBottom: '20px',
+                            opacity: 0.9
+                        }} />
+                        <h2 style={{
+                            color: 'white',
+                            fontSize: '24px',
+                            fontWeight: '600',
+                            margin: '0 0 12px 0'
+                        }}>
+                            Welcome to FlickShare
+                        </h2>
+                        <p style={{
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            fontSize: '14px',
+                            marginBottom: '24px'
+                        }}>
+                            Watch videos together with friends
+                        </p>
+                        <Button
+                            variant="contained"
+                            size="large"
+                            onClick={() => props.setViewName('setup')}
+                            style={{
+                                background: 'white',
+                                color: '#db6c33',
+                                fontSize: '15px',
+                                fontWeight: '600',
+                                padding: '12px 32px',
+                                borderRadius: '25px',
+                                textTransform: 'none',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                            }}
+                        >
+                            Setup FlickShare
+                        </Button>
+                    </div>
+                ) : currentRoom ? (
+                    // Active party state
+                    <div style={{ width: '100%', maxWidth: '320px' }}>
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            borderRadius: '16px',
+                            padding: '24px',
+                            marginBottom: '16px',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{
+                                width: '60px',
+                                height: '60px',
+                                background: 'rgba(16, 185, 129, 0.2)',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 16px',
+                                border: '3px solid rgba(16, 185, 129, 0.5)'
+                            }}>
+                                <GroupsIcon style={{ fontSize: '32px', color: '#10b981' }} />
+                            </div>
+                            <h3 style={{
+                                color: 'white',
+                                fontSize: '18px',
+                                fontWeight: '600',
+                                margin: '0 0 8px 0'
+                            }}>
+                                Party Active
+                            </h3>
+                            <div style={{
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                display: 'inline-block',
+                                marginBottom: '8px'
+                            }}>
+                                <span style={{
+                                    color: 'rgba(255, 255, 255, 0.7)',
+                                    fontSize: '11px',
+                                    display: 'block'
+                                }}>
+                                    Room ID
+                                </span>
+                                <span style={{
+                                    color: 'white',
+                                    fontSize: '16px',
+                                    fontWeight: '600',
+                                    letterSpacing: '1px'
+                                }}>
+                                    {currentRoom}
+                                </span>
+                            </div>
+                        </div>
+
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            onClick={goToActiveParty}
+                            startIcon={<OpenInNewIcon />}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.95)',
+                                color: '#db6c33',
+                                fontSize: '15px',
+                                fontWeight: '600',
+                                padding: '12px',
+                                borderRadius: '10px',
+                                textTransform: 'none',
+                                marginBottom: '12px',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                            }}
+                        >
+                            Go to Party
+                        </Button>
+
+                        <Button
+                            variant="outlined"
+                            fullWidth
+                            onClick={leaveParty}
+                            startIcon={<ExitToAppIcon />}
+                            disabled={loading}
+                            style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '2px solid rgba(239, 68, 68, 0.5)',
+                                color: 'white',
+                                fontSize: '15px',
+                                fontWeight: '600',
+                                padding: '12px',
+                                borderRadius: '10px',
+                                textTransform: 'none'
+                            }}
+                        >
+                            Leave Party
+                        </Button>
+                    </div>
+                ) : (
+                    // No active party state
+                    <div style={{ width: '100%', maxWidth: '320px' }}>
+                        <h2 style={{
+                            color: 'white',
+                            fontSize: '20px',
+                            fontWeight: '600',
+                            textAlign: 'center',
+                            margin: '0 0 24px 0'
+                        }}>
+                            Start Watching Together
+                        </h2>
+
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            onClick={startParty}
+                            disabled={loading}
+                            startIcon={<AddIcon />}
+                            style={{
+                                background: loading ? 'rgba(255, 255, 255, 0.5)' : 'white',
+                                color: loading ? 'rgba(102, 126, 234, 0.5)' : '#db6c33',
+                                fontSize: '15px',
+                                fontWeight: '600',
+                                padding: '14px',
+                                borderRadius: '12px',
+                                textTransform: 'none',
+                                marginBottom: '32px',
+                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                            }}
+                        >
+                            {loading ? 'Starting...' : 'Start New Party'}
+                        </Button>
+
+                        <div style={{
+                            width: '100%',
+                            height: '1px',
+                            background: 'rgba(255, 255, 255, 0.2)',
+                            marginBottom: '32px',
+                            position: 'relative'
+                        }}>
+                            <span style={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                background: 'linear-gradient(135deg, #db6c33 0%, #764ba2 100%)',
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                padding: '4px 16px',
+                                fontSize: '12px',
+                                fontWeight: '500'
+                            }}>
+                                OR
+                            </span>
+                        </div>
+
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            backdropFilter: 'blur(10px)',
+                            borderRadius: '12px',
+                            padding: '20px'
+                        }}>
+                            <label style={{
+                                display: 'block',
+                                color: 'white',
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                marginBottom: '10px',
+                                opacity: 0.9
+                            }}>
+                                Join Existing Party
                             </label>
                             <input
                                 type="text"
                                 value={roomToJoin}
-                                onChange={(e)=>setRoomToJoin(e.target.value)}
-                                placeholder="Enter room ID"
+                                onChange={(e) => setRoomToJoin(e.target.value)}
+                                placeholder="Enter Room ID"
                                 style={{
                                     width: '100%',
-                                    padding: '8px',
-                                    border: '1px solid #d1d5db',
-                                    borderRadius: '6px',
-                                    fontSize: '14px'
+                                    padding: '12px',
+                                    background: 'rgba(255, 255, 255, 0.2)',
+                                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                                    borderRadius: '8px',
+                                    color: 'white',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    boxSizing: 'border-box',
+                                    marginBottom: '12px',
+                                    transition: 'all 0.2s'
+                                }}
+                                onFocus={(e) => {
+                                    e.target.style.background = 'rgba(255, 255, 255, 0.25)';
+                                    e.target.style.borderColor = 'white';
+                                }}
+                                onBlur={(e) => {
+                                    e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                                    e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
                                 }}
                             />
+                            <Button
+                                variant="contained"
+                                fullWidth
+                                onClick={() => joinParty(roomToJoin)}
+                                disabled={!roomToJoin.trim() || loading}
+                                startIcon={<LoginIcon />}
+                                style={{
+                                    background: (!roomToJoin.trim() || loading) ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.9)',
+                                    color: (!roomToJoin.trim() || loading) ? 'rgba(102, 126, 234, 0.5)' : '#db6c33',
+                                    fontSize: '15px',
+                                    fontWeight: '600',
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    textTransform: 'none',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                                }}
+                            >
+                                {loading ? 'Joining...' : 'Join Party'}
+                            </Button>
                         </div>
-                        <Button 
-                            variant="contained" 
-                            size="small" 
-                            color="warning" 
-                            onClick={() => joinParty(roomToJoin)}
-                        >
-                            Join Party
-                        </Button>
-                    </div> 
-                ) :
-                <Button variant="contained" size="medium" color="warning" onClick={()=>props.setViewName('setup')}>Setup FlickShare</Button>
-            }
+                    </div>
+                )}
+            </div>
+            <p className="version" style={{color: 'white'}}>FlickShare v1.0.0</p>
         </div>
     );
 }

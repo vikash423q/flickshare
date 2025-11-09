@@ -124,6 +124,19 @@ const  updateRoomPlayer = async (roomId, userId, playerState) => {
         duration: playerState.duration, // Fixed: was message.duration
         currentTime: playerState.currentTime, // Fixed: was message.currentTime
     });
+
+    setTimeout(()=>{
+        publishToRoom(roomId, { // Pass roomId, not currentRoom object
+          actionType: 'media',
+          type: 'video_state_update',
+          userId,
+          name,
+          roomId: roomId, // Fixed: was currentRoom
+          isPlaying: playerState.isPlaying, // Fixed: was message.isPlaying
+          duration: playerState.duration, // Fixed: was message.duration
+          currentTime: Math.min(playerState.currentTime+1, playerState.duration), // Fixed: was message.currentTime
+      });
+    }, 1000);
 }
 
 const addUserToRoom = async (roomId, userId, name) => {
