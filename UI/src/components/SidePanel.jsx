@@ -216,7 +216,7 @@ const SidePanel = ({ onClose }) => {
         break;
       case 'video_state_update':
         handleVideoState(data);
-        setPlayerState(data);
+        setPlayerState(data); 
         break;
       case 'pong':
         const latencyMs = Date.now() - JSON.parse(data).timestamp;
@@ -291,7 +291,9 @@ const SidePanel = ({ onClose }) => {
         if (updated){
           setCoolDown(true);
           setTimeout(()=>setCoolDown(false), 2000);
-          addSystemMessage(systemMsg);
+          if (data.userId !== userId){
+            addSystemMessage(systemMsg);
+          }
         }
       } else {
         console.error("Video controller not found!")
