@@ -204,7 +204,7 @@ const SidePanel = ({ onClose }) => {
         addSystemMessage('You joined the room');
         break;
       case 'message':
-        addMessage(data.userId, data.content, data.timestamp);
+        addMessage(data.userId, data.name, data.content, data.timestamp);
         break;
       case 'user_joined':
         if (data.userId !== userId) {
@@ -227,7 +227,7 @@ const SidePanel = ({ onClose }) => {
     }
   };
 
-  const addMessage = (user, content, timestamp) => {
+  const addMessage = (user, name, content, timestamp) => {
     setMessages(prev => [...prev, {
       id: Date.now() + Math.random(),
       name,
@@ -664,7 +664,7 @@ const SidePanel = ({ onClose }) => {
                         marginRight: msg.user === userId ? '0' : '32px'
                       }}
                     >
-                      {msg.type === 'message' && msg.userId !== userId && (
+                      {msg.type === 'message' && msg.user !== userId && (
                         <div style={{ 
                           fontSize: '11px', 
                           fontWeight: '600', 
