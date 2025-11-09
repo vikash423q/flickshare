@@ -245,8 +245,7 @@ class PrimeVideoControl extends RemoteControlBase {
 class NetflixControl extends RemoteControlBase {
   constructor() {
     super();
-    // this.initNetflixPlayer();
-    this.media = document.getElementsByTagName("video")[0];
+    this.initNetflixPlayer();
   }
 
   initNetflixPlayer(retries = 10) {

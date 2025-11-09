@@ -63,3 +63,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
   chrome.storage.local.remove(`panelState_${tabId}`);
 });
+
+
+//    chrome.runtime.sendMessage({ action: "contentReady" });
+//    chrome.runtime.sendMessage({ action: "videoReady" });
