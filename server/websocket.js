@@ -38,12 +38,12 @@ async function handleRedisMessage(message, channel) {
     // Broadcast to all WebSocket connections in this room
     connections.forEach(ws => {
       if (ws.readyState === ws.OPEN) {
-        if (data.actionType === 'media' && data.userId === ws.userId){
-            return;
-        }
-        else if (data.actionType === 'update' && data.userId !== ws.userId){
-            return;
-        }
+        // if (data.actionType === 'media' && data.userId === ws.userId){
+        //     return;
+        // }
+        // else if (data.actionType === 'update' && data.userId !== ws.userId){
+        //     return;
+        // }
         ws.send(payload);
       }
     });

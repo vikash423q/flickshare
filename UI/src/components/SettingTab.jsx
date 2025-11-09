@@ -5,12 +5,26 @@ import CloseIcon from '@mui/icons-material/Close';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import { useState } from 'react';
+import { useEffect } from 'react';
 
 const SettingTab = ({ theme, name, backendUrl, token, setName, playerState }) => {
     const [newName, setNewName] = useState('');
     const [nameChangeEnable, setNameChangeEnable] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [message, setMessage] = useState('');
+    const [currentTime, setCurrentTime] = useState(0);
+
+    useEffect(()=>{
+        setCurrentTime(playerState.currentTime);
+        const currentTimeInterval = setInterval(()=>{
+            if(playerState?.isPlaying){
+                setCurrentTime((ct)=>ct+1);
+            }
+        }, 1000);
+
+        return () => clearInterval(currentTimeInterval);
+
+    }, [playerState])
 
     const handleNameChange = async () => {
         if (!newName.trim()) {
@@ -232,11 +246,9 @@ const SettingTab = ({ theme, name, backendUrl, token, setName, playerState }) =>
                         width: '40px',
                         height: '40px',
                         borderRadius: '50%',
-                        background: playerState?.active 
-                            ? (playerState?.isPlaying 
+                        background: playerState?.isPlaying 
                                 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                                : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)')
-                            : 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
+                                : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -264,9 +276,7 @@ const SettingTab = ({ theme, name, backendUrl, token, setName, playerState }) =>
                             fontWeight: '600',
                             color: theme.text
                         }}>
-                            {playerState?.active 
-                                ? (playerState?.isPlaying ? 'Playing' : 'Paused')
-                                : 'Inactive'}
+                            {playerState?.isPlaying ? 'Playing' : 'Paused'}
                         </div>
                     </div>
                     <div style={{
@@ -274,7 +284,7 @@ const SettingTab = ({ theme, name, backendUrl, token, setName, playerState }) =>
                         fontWeight: '500',
                         color: theme.text
                     }}>
-                        {formatTime(playerState?.currentTime)} / {formatTime(playerState?.duration)}
+                        {formatTime(currentTime)} / {formatTime(playerState?.duration)}
                     </div>
                 </div>
 

@@ -130,21 +130,21 @@ const SidePanel = ({ onClose }) => {
     }
   }, [isConnected]);
 
-  useEffect(()=> {
-    const roomInfoInterval =  setInterval(()=>{
-        if(isConnected){
-          wsRef.current.send(JSON.stringify({
-            actionType: 'update',
-            type: 'room_info',
-            roomId: roomId,
-            token: token,
-            userId: userId
-          }));
-        }
-      }, 10000)
+  // useEffect(()=> {
+  //   const roomInfoInterval =  setInterval(()=>{
+  //       if(isConnected){
+  //         wsRef.current.send(JSON.stringify({
+  //           actionType: 'update',
+  //           type: 'room_info',
+  //           roomId: roomId,
+  //           token: token,
+  //           userId: userId
+  //         }));
+  //       }
+  //     }, 10000)
 
-    return () => clearInterval(roomInfoInterval);
-    }, [isConnected]);
+  //   return () => clearInterval(roomInfoInterval);
+  //   }, [isConnected]);
 
   const connectWebSocket = () => {
     if (wsRef.current) return;
@@ -216,9 +216,7 @@ const SidePanel = ({ onClose }) => {
         break;
       case 'video_state_update':
         handleVideoState(data);
-        break;
-      case 'room_info':
-        setPlayerState(data.player);
+        setPlayerState(data);
         break;
       case 'pong':
         const latencyMs = Date.now() - JSON.parse(data).timestamp;
@@ -271,6 +269,7 @@ const SidePanel = ({ onClose }) => {
 
   const handleVideoState = (data) => {
       if (vcRef.current) {
+        if (data.userId !== userId) return;
         let controller = vcRef.current;
         let updated = false;
         let systemMsg = data.name;
