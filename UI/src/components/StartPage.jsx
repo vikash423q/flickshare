@@ -147,12 +147,21 @@ const StartPage = (props) => {
         const data = await res.json();
         if (res.status === 200) { 
             console.log("Party joined successfully:", data.link);
-            chrome.tabs.update(currentTab.id, {url: data.link});
+            
+            chrome.tabs.onUpdated.addListener(async function listener(tabId, changeInfo) {
+                if (tabId === currentTab.id && changeInfo.status === 'complete') {
+                    // Remove listener after first execution
+                    chrome.tabs.onUpdated.removeListener(listener);
+                    
+                    // Wait a bit for the page to fully load
+                    setTimeout(() => {
+                        injectAndOpenPanel(currentTab.id, roomId);
+                    }, 500);
+                        }
+            });
+
             await chrome.storage.local.set({ roomId });                    
-            // Wait a bit for the page to fully load
-            setTimeout(() => {
-                injectAndOpenPanel(currentTab.id, roomId);
-            }, 500);
+            chrome.tabs.update(currentTab.id, {url: data.link});
         }
         
         
