@@ -1,116 +1,170 @@
 import { publishToRoom, roomConnections } from '../websocket.js';
-import Room from '../model/room.js';
 import { generateHexToken } from '../util.js';
+import { initializeRoom, addUserToRoom, leaveRoom as leaveRoomRedis, getPartyLink, getRoomInfo } from '../websocket.js';
 
 
-const createRoom = (req, res) => {
-    const roomId = generateHexToken(8);
-    Room.create({roomId, createdBy: req.userId, members: [req.userId]})
-    .then(room => {
-        roomConnections.set(roomId, new Set());
-        res.json({ roomId: room.roomId });
-    })
-    .catch(err => {
-        console.error('Error creating room:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    });
-    
-}
+const createRoom = async (req, res) => {
+    try {
+        const roomId = generateHexToken(8);
+        const link = req.body.url || ''; // Get link from request body if provided
 
-const joinRoom = (req, res) => {
-    const { roomId } = req.params;
-    const { userId } = req;
-
-    Room.findOne({ roomId })
-    .then(room => {
+        if (!link){
+            return res.status(500).json({ error: 'Failed to create room. No link found!' });
+        }
+        
+        const room = await initializeRoom(roomId, req.userId, req.name, link);
+        
         if (!room) {
-            return res.status(404).json({ error: 'Room not found' });
+            return res.status(500).json({ error: 'Failed to create room' });
         }
-
-        if (!room.members.includes(userId)) {
-            room.members.push(userId);
-            room.save();
-        }
+        
+        // Initialize WebSocket connections set for this room
         if (!roomConnections.has(roomId)) {
             roomConnections.set(roomId, new Set());
         }
-        roomConnections.get(roomId).add(userId);
-
-        res.json({ success: true, message: `${req.userName} Joined room ${roomId}` });
-    }   )
-    .catch(err => {
-        console.error('Error joining room:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    });
+        
+        res.json({ roomId: roomId });
+    } catch (err) {
+        console.error('Error creating room:', err);
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
 }
 
-const leaveRoom = (req, res) => {
+const joinRoom = async (req, res) => {
     const { roomId } = req.params;
-    const { userId } = req;
+    const { userId, name } = req;
 
-    Room.findOne({ roomId })
-    .then(async room => {
-        if (!room) {
+    try {
+        // Check if room exists
+        const partyRes = await getPartyLink(roomId);
+        
+        if (partyRes.status === 'error') {
             return res.status(404).json({ error: 'Room not found' });
         }
 
-        if (room.members.includes(userId)) {
-            // remove userId from members array
-            room.members = room.members.filter(id => id !== userId);
-            room.save();
-        }
-        if (roomConnections.has(roomId)) {
-            if (roomConnections.get(roomId).has(userId)){
-                // remove userId from connections set
-                roomConnections.get(roomId).delete(userId);
-            }
+        // Add user to room in Redis
+        await addUserToRoom(roomId, userId, name);
 
+        // Initialize WebSocket connections set for this room if not exists
+        if (!roomConnections.has(roomId)) {
+            roomConnections.set(roomId, new Set());
         }
+
+        // Publish join event to room
         await publishToRoom(roomId, {
-              type: 'user_left',
-              userId,
-              roomId: currentRoom,
-              timestamp: Date.now()
+            actionType: 'system',
+            type: 'user_joined',
+            userId,
+            name,
+            roomId: roomId,
+            timestamp: Date.now()
         });
 
-        res.json({ success: true, message: `${req.userName} Left room ${roomId}` });
-    }   )
-    .catch(err => {
+        res.json({ success: true, message: `${name} joined room ${roomId}` });
+    } catch (err) {
+        console.error('Error joining room:', err);
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
+}
+
+const leaveRoom = async (req, res) => {
+    const { roomId } = req.params;
+    const { userId, name } = req;
+
+    try {
+        // Check if room exists
+        const partyRes = await getPartyLink(roomId);
+        
+        if (partyRes.status === 'error') {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+
+        // Remove user from room in Redis
+        await leaveRoomRedis(roomId, userId);
+
+        // Remove from WebSocket connections
+        if (roomConnections.has(roomId)) {
+            // Note: We can't directly delete userId from connections here
+            // because connections store WebSocket objects, not userIds
+            // The WebSocket handler will clean this up
+            const connections = roomConnections.get(roomId);
+            
+            // Clean up empty room
+            if (connections.size === 0) {
+                roomConnections.delete(roomId);
+            }
+        }
+
+        // Publish leave event to room
+        await publishToRoom(roomId, {
+            actionType: 'system',
+            type: 'user_left',
+            userId,
+            name,
+            roomId: roomId,
+            timestamp: Date.now()
+        });
+
+        res.json({ success: true, message: `${name} left room ${roomId}` });
+    } catch (err) {
         console.error('Error leaving room:', err);
-        res.status(500).json({ error: 'Internal server error' });
-    });
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
 }
 
 const sendMessage = async (req, res) => {
     const { roomId } = req.params;
-    const { userId, content } = req.body;
+    const { content } = req.body;
+    const { userId, name } = req;
 
-    if (!userId || !content) {
-        return res.status(400).json({ error: 'userId and content required' });
+    if (!content) {
+        return res.status(400).json({ error: 'content required' });
     }
 
-    const message = {
-        type: 'message',
-        roomId,
-        userId,
-        content,
-        timestamp: Date.now()
-    };
+    try {
+        // Check if room exists
+        const partyRes = await getPartyLink(roomId);
+        
+        if (partyRes.status === 'error') {
+            return res.status(404).json({ error: 'Room not found' });
+        }
 
-    // Publish to Redis
-    await publishToRoom(roomId, message);
+        const message = {
+            actionType: 'chat',
+            type: 'message',
+            roomId,
+            userId,
+            name,
+            content,
+            timestamp: Date.now()
+        };
 
-    res.json({ success: true, message });
+        // Publish to Redis - all workers will receive it
+        await publishToRoom(roomId, message);
+
+        res.json({ success: true, message });
+    } catch (err) {
+        console.error('Error sending message:', err);
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
 };
 
-const roomInfo = (req, res) => {
+const roomInfo = async (req, res) => {
     const { roomId } = req.params;
-    const connections = roomConnections.get(roomId);
 
-    res.json({
-    roomId,
-    activeConnections: connections ? connections.size : 0
-    });
+    try {
+        // Check if room exists and get info
+        const roomInfo = await getRoomInfo(roomId);
+        
+        if (roomInfo.link === undefined) {
+            return res.status(404).json({ error: 'Room not found' });
+        }
+
+        res.json(roomInfo);
+    } catch (err) {
+        console.error('Error getting room info:', err);
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
 };
 
 export { createRoom, sendMessage, roomInfo, joinRoom, leaveRoom };

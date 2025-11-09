@@ -284,7 +284,7 @@ const SettingTab = ({ theme, name, backendUrl, token, setName, playerState }) =>
                         fontWeight: '500',
                         color: theme.text
                     }}>
-                        {formatTime(currentTime)} / {formatTime(playerState?.duration)}
+                        {formatTime(currentTime)}
                     </div>
                 </div>
 

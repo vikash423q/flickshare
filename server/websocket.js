@@ -160,6 +160,23 @@ const getRoomState = async (roomId, userId) => {
     });
 }
 
+const getRoomInfo = async (roomId, userId) => {
+    const currentRoom = await redisClient.hGetAll(`room:${roomId}`);
+    if (!currentRoom) return {};
+    const player = JSON.parse(currentRoom.player);
+    const members = JSON.parse(currentRoom.members);
+    const link = currentRoom.link;
+    return {members, link, player};
+}
+
+
+const getPartyLink = async (roomId) => {
+    let currentRoom = await redisClient.hGetAll(`room:${roomId}`);
+    if (!currentRoom) return {"status": "error", "message": "Room not found!"};
+
+    return {"status": "success", "link": currentRoom.link};
+}
+
 // Subscribe to a room
 async function subscribeToRoom(roomId) {
   const channel = `room:${roomId}`;
@@ -409,4 +426,5 @@ const handleWebSocketConnection = (ws) => {
   });
 };
 
-export { handleWebSocketConnection, initRedis, publishToRoom, roomConnections };
+export { handleWebSocketConnection, initRedis, publishToRoom, roomConnections, redisClient, 
+    initializeRoom, addUserToRoom, leaveRoom, getRoomInfo, getPartyLink };

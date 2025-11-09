@@ -10,6 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import { authenticate, info, updateUserInfo, generateUserToken } from './api/user.js';
 import { createRoom, sendMessage, roomInfo, joinRoom, leaveRoom} from './api/room.js';
+import { redirectToParty } from './api/party.js';
 import { handleWebSocketConnection } from './websocket.js';
 import { auth } from './middleware/auth.js';
 import Config from './config.js';
@@ -57,6 +58,8 @@ app.get('/api/rooms/:roomId/info', auth, roomInfo);
 app.post('/api/rooms/:roomId/join', auth, joinRoom);
 app.post('/api/rooms/:roomId/leave', auth, leaveRoom);
 
+// Party endpoints
+app.get('/party/room/:roomId', redirectToParty);
 
 // Initial setup
 setup();
